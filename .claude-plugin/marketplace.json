@@ -1,0 +1,28 @@
+{
+  "name": "myiam-cli",
+  "description": "Claude Code plugin for myiam-cli — MyIAM service administration",
+  "owner": {
+    "name": "MyIAM"
+  },
+  "plugins": [
+    {
+      "name": "myiam-cli",
+      "source": "./",
+      "description": "Manage MyIAM service settings (OAuth2 client, login types, policies, terms, user fields, UI/branding, API config) from the terminal",
+      "version": "1.0.0",
+      "author": {
+        "name": "MyIAM",
+        "email": "sheldon.park@myiam.io"
+      },
+      "license": "Apache-2.0",
+      "keywords": [
+        "myiam",
+        "iam",
+        "admin",
+        "identity",
+        "oauth2",
+        "cli"
+      ]
+    }
+  ]
+}
