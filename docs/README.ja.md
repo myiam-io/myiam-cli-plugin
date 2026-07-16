@@ -13,7 +13,7 @@
 claude plugin marketplace add myiam-io/myiam-cli-plugin
 
 # プラグインをインストール
-claude plugin install myiam-cli@myiam-cli
+claude plugin install myiam@myiam
 ```
 
 ローカル開発:
@@ -30,7 +30,7 @@ claude --plugin-dir ./myiam-cli-plugin
 codex plugin marketplace add myiam-io/myiam-cli-plugin
 
 # プラグインをインストール
-codex plugin install myiam-cli
+codex plugin install myiam
 ```
 
 ローカル開発:
@@ -73,9 +73,9 @@ myiam-cli login
 
 | エージェント | ファイル | スコープ |
 |---|---|---|
-| Claude Code | `skills/myiam-cli/SKILL.md` | `/myiam-cli`スキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
-| Codex CLI | `skills/myiam-cli/SKILL.md` | `@myiam-cli`スキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
-| Gemini CLI | `skills/myiam-cli/SKILL.md` | extensionスキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
+| Claude Code | `skills/myiam/SKILL.md` | `/myiam`スキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
+| Codex CLI | `skills/myiam/SKILL.md` | `@myiam`スキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
+| Gemini CLI | `skills/myiam/SKILL.md` | extensionスキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
 
 すべてのファイルにmyiam-cliの完全なコマンドリファレンスが含まれています:
 - ログインと対象サービスの選択（login, service list, service use）
@@ -90,13 +90,13 @@ myiam-cli login
 ### Claude Code
 
 ```bash
-claude plugin update myiam-cli
+claude plugin update myiam
 ```
 
 ### Codex CLI
 
 ```bash
-codex plugin upgrade myiam-cli
+codex plugin upgrade myiam
 ```
 
 ### Gemini CLI
@@ -110,19 +110,19 @@ gemini extensions install https://github.com/myiam-io/myiam-cli-plugin
 ### Claude Code
 
 ```bash
-claude plugin uninstall myiam-cli
+claude plugin uninstall myiam
 ```
 
 ### Codex CLI
 
 ```bash
-codex plugin uninstall myiam-cli
+codex plugin uninstall myiam
 ```
 
 ### Gemini CLI
 
 ```bash
-gemini extensions uninstall myiam-cli
+gemini extensions uninstall myiam
 ```
 
 ## ライセンス

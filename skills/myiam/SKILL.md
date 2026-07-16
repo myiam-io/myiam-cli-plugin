@@ -1,5 +1,5 @@
 ---
-name: myiam-cli
+name: myiam
 description: myiam-cli로 MyIAM 서비스 설정(로그인 방법, 약관, 정책, 사용자 필드, UI 테마, OAuth2 클라이언트, API 설정)을 관리한다. 서비스 설정을 읽기/생성/수정/삭제/순서변경 하거나, 인증/대상 서비스 선택이 필요할 때 사용한다.
 ---
 

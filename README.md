@@ -13,7 +13,7 @@
 claude plugin marketplace add myiam-io/myiam-cli-plugin
 
 # 플러그인 설치
-claude plugin install myiam-cli@myiam-cli
+claude plugin install myiam@myiam
 ```
 
 로컬 개발:
@@ -30,7 +30,7 @@ claude --plugin-dir ./myiam-cli-plugin
 codex plugin marketplace add myiam-io/myiam-cli-plugin
 
 # 플러그인 설치
-codex plugin install myiam-cli
+codex plugin install myiam
 ```
 
 로컬 개발:
@@ -73,9 +73,9 @@ myiam-cli login
 
 | 에이전트 | 파일 | 범위 |
 |---|---|---|
-| Claude Code | `skills/myiam-cli/SKILL.md` | `/myiam-cli` 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
-| Codex CLI | `skills/myiam-cli/SKILL.md` | `@myiam-cli` 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
-| Gemini CLI | `skills/myiam-cli/SKILL.md` | extension 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
+| Claude Code | `skills/myiam/SKILL.md` | `/myiam` 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
+| Codex CLI | `skills/myiam/SKILL.md` | `@myiam` 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
+| Gemini CLI | `skills/myiam/SKILL.md` | extension 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
 
 모든 파일이 myiam-cli 전체 명령어 레퍼런스를 포함합니다:
 - 로그인 및 대상 서비스 선택 (login, service list, service use)
@@ -90,13 +90,13 @@ myiam-cli login
 ### Claude Code
 
 ```bash
-claude plugin update myiam-cli
+claude plugin update myiam
 ```
 
 ### Codex CLI
 
 ```bash
-codex plugin upgrade myiam-cli
+codex plugin upgrade myiam
 ```
 
 ### Gemini CLI
@@ -110,19 +110,19 @@ gemini extensions install https://github.com/myiam-io/myiam-cli-plugin
 ### Claude Code
 
 ```bash
-claude plugin uninstall myiam-cli
+claude plugin uninstall myiam
 ```
 
 ### Codex CLI
 
 ```bash
-codex plugin uninstall myiam-cli
+codex plugin uninstall myiam
 ```
 
 ### Gemini CLI
 
 ```bash
-gemini extensions uninstall myiam-cli
+gemini extensions uninstall myiam
 ```
 
 ## 라이선스

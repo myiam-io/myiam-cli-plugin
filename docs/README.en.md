@@ -13,7 +13,7 @@
 claude plugin marketplace add myiam-io/myiam-cli-plugin
 
 # Install the plugin
-claude plugin install myiam-cli@myiam-cli
+claude plugin install myiam@myiam
 ```
 
 Local development:
@@ -30,7 +30,7 @@ claude --plugin-dir ./myiam-cli-plugin
 codex plugin marketplace add myiam-io/myiam-cli-plugin
 
 # Install the plugin
-codex plugin install myiam-cli
+codex plugin install myiam
 ```
 
 Local development:
@@ -73,9 +73,9 @@ myiam-cli login
 
 | Agent | File | Scope |
 |---|---|---|
-| Claude Code | `skills/myiam-cli/SKILL.md` | `/myiam-cli` skill — auto-triggers on MyIAM service/admin queries |
-| Codex CLI | `skills/myiam-cli/SKILL.md` | `@myiam-cli` skill — auto-triggers on MyIAM service/admin queries |
-| Gemini CLI | `skills/myiam-cli/SKILL.md` | Extension skill — auto-triggers on MyIAM service/admin queries |
+| Claude Code | `skills/myiam/SKILL.md` | `/myiam` skill — auto-triggers on MyIAM service/admin queries |
+| Codex CLI | `skills/myiam/SKILL.md` | `@myiam` skill — auto-triggers on MyIAM service/admin queries |
+| Gemini CLI | `skills/myiam/SKILL.md` | Extension skill — auto-triggers on MyIAM service/admin queries |
 
 All files cover the full myiam-cli command reference:
 - Login & target service selection (`login`, `service list`, `service use`)
@@ -90,13 +90,13 @@ All files cover the full myiam-cli command reference:
 ### Claude Code
 
 ```bash
-claude plugin update myiam-cli
+claude plugin update myiam
 ```
 
 ### Codex CLI
 
 ```bash
-codex plugin upgrade myiam-cli
+codex plugin upgrade myiam
 ```
 
 ### Gemini CLI
@@ -110,19 +110,19 @@ gemini extensions install https://github.com/myiam-io/myiam-cli-plugin
 ### Claude Code
 
 ```bash
-claude plugin uninstall myiam-cli
+claude plugin uninstall myiam
 ```
 
 ### Codex CLI
 
 ```bash
-codex plugin uninstall myiam-cli
+codex plugin uninstall myiam
 ```
 
 ### Gemini CLI
 
 ```bash
-gemini extensions uninstall myiam-cli
+gemini extensions uninstall myiam
 ```
 
 ## License
