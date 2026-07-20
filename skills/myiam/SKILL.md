@@ -9,6 +9,8 @@ description: myiam-cli로 MyIAM 서비스 설정(로그인 방법, 약관, 정�
 
 이 CLI를 사용하려면 먼저 [myiam.io](https://myiam.io)에 가입해 관리할 서비스(테넌트)를 보유하고 있어야 한다 — 가입 및 서비스 생성은 웹 콘솔에서만 가능하며, CLI는 이미 존재하는 서비스의 설정만 관리한다.
 
+MyIAM 서비스 자체(개념, 패널 필드별 의미 등)에 대한 전체 문서는 https://myiam.io/llms-full.txt 참고 — 이 스킬은 CLI 사용법만 다룬다.
+
 ## 설정 (패널 명령 전에 반드시 필요)
 
 ```bash
