@@ -1,6 +1,6 @@
 {
   "name": "myiam",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Manage MyIAM service settings (OAuth2 client, login types, policies, terms, user fields, UI/branding, API config) from the terminal. Skill for the myiam-cli tool.",
   "author": {
     "name": "MyIAM",
