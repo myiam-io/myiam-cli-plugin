@@ -13,8 +13,8 @@
 - `.claude-plugin/plugin.json` — Claude Code 플러그인 메타데이터
 - `.claude-plugin/marketplace.json` — Claude Code 마켓플레이스 등록 설정
 - `.codex-plugin/plugin.json` — Codex CLI 플러그인 메타데이터
-- `gemini-extension.json` — Gemini CLI extension 메타데이터
-- `skills/myiam/SKILL.md` — `/myiam`(Claude Code) · `@myiam`(Codex CLI) · Gemini CLI extension이 공통으로 쓰는 스킬 정의. 이 저장소의 핵심 산출물로, myiam-cli를 조작할 때 사용하는 전체 명령어 레퍼런스. frontmatter의 `name`과 `description`이 스킬 자동 트리거 조건을 결정한다. **원본은 `../myiam-cli/skills/myiam-cli/SKILL.md`** — 이 파일은 그 사본이다 (아래 "스킬 편집" 참고). ⚠️ 디렉터리 이름(`myiam` vs `myiam-cli`)과 frontmatter `name` 필드가 원본과 다르다 — 명령어를 `/myiam-cli`에서 `/myiam`으로 줄이기 위해 이 저장소에서만 의도적으로 바꾼 상태 (아래 "스킬 편집" 참고).
+- `gemini-extension.json` — Antigravity CLI(`agy`)·Gemini CLI 공용 메타데이터 (`agy plugin install`이 이 파일을 읽는다)
+- `skills/myiam/SKILL.md` — `/myiam`(Claude Code) · `@myiam`(Codex CLI) · Antigravity CLI 플러그인이 공통으로 쓰는 스킬 정의. 이 저장소의 핵심 산출물로, myiam-cli를 조작할 때 사용하는 전체 명령어 레퍼런스. frontmatter의 `name`과 `description`이 스킬 자동 트리거 조건을 결정한다. **원본은 `../myiam-cli/skills/myiam-cli/SKILL.md`** — 이 파일은 그 사본이다 (아래 "스킬 편집" 참고). ⚠️ 디렉터리 이름(`myiam` vs `myiam-cli`)과 frontmatter `name` 필드가 원본과 다르다 — 명령어를 `/myiam-cli`에서 `/myiam`으로 줄이기 위해 이 저장소에서만 의도적으로 바꾼 상태 (아래 "스킬 편집" 참고).
 - `README.md` / `docs/README.en.md` / `docs/README.ja.md` — 설치·업데이트·제거 안내 (한국어/영어/일본어). 셋 다 같은 내용을 유지해야 한다.
 - `scripts/bump-version.sh` — `plugin.json`(Claude) · `marketplace.json` · `plugin.json`(Codex) · `gemini-extension.json` 4개 파일의 `version` 필드를 한 번에 변경. 사용법: `scripts/bump-version.sh 1.1.0`
 

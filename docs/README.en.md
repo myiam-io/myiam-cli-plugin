@@ -40,18 +40,20 @@ git clone https://github.com/myiam-io/myiam-cli-plugin.git
 codex --plugin-dir ./myiam-cli-plugin
 ```
 
-### Google Gemini CLI
+### Google Antigravity CLI
 
 ```bash
-gemini extensions install https://github.com/myiam-io/myiam-cli-plugin
+agy plugin install https://github.com/myiam-io/myiam-cli-plugin
 ```
 
 Local development:
 
 ```bash
 git clone https://github.com/myiam-io/myiam-cli-plugin.git
-gemini extensions link ./myiam-cli-plugin
+agy plugin install ./myiam-cli-plugin
 ```
+
+During the transition, the legacy Gemini CLI (`gemini extensions install ...`) still installs it.
 
 ## Prerequisites
 
@@ -75,7 +77,7 @@ myiam-cli login
 |---|---|---|
 | Claude Code | `skills/myiam/SKILL.md` | `/myiam` skill — auto-triggers on MyIAM service/admin queries |
 | Codex CLI | `skills/myiam/SKILL.md` | `@myiam` skill — auto-triggers on MyIAM service/admin queries |
-| Gemini CLI | `skills/myiam/SKILL.md` | Extension skill — auto-triggers on MyIAM service/admin queries |
+| Antigravity CLI | `skills/myiam/SKILL.md` | Plugin skill — auto-triggers on MyIAM service/admin queries |
 
 All files cover the full myiam-cli command reference:
 - Login & target service selection (`login`, `service list`, `service use`)
@@ -99,10 +101,10 @@ claude plugin update myiam
 codex plugin upgrade myiam
 ```
 
-### Gemini CLI
+### Antigravity CLI
 
 ```bash
-gemini extensions install https://github.com/myiam-io/myiam-cli-plugin
+agy plugin install https://github.com/myiam-io/myiam-cli-plugin
 ```
 
 ## Uninstall
@@ -119,10 +121,10 @@ claude plugin uninstall myiam
 codex plugin uninstall myiam
 ```
 
-### Gemini CLI
+### Antigravity CLI
 
 ```bash
-gemini extensions uninstall myiam
+agy plugin uninstall myiam
 ```
 
 ## License

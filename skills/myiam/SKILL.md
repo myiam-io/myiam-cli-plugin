@@ -1,6 +1,6 @@
 ---
 name: myiam
-description: myiam-cli로 MyIAM 서비스 설정(로그인 방법, 약관, 정책, 사용자 필드, UI 테마, OAuth2 클라이언트, API 설정)을 관리한다. 서비스 설정을 읽기/생성/수정/삭제/순서변경 하거나, 소속 조직(테넌트)·등급·멤버를 조회하거나, 인증/대상 서비스 선택이 필요할 때 사용한다.
+description: myiam-cli로 MyIAM 서비스 설정(로그인 방법, 약관, 정책, 사용자 필드, UI 테마, OAuth2 클라이언트, API 설정)을 관리한다. 서비스 설정을 읽기/생성/수정/삭제/순서변경 하거나, 소속 조직(테넌트)·등급·멤버를 조회하거나, SDK 연동에 필요한 .env 값(service_uid, client_id, redirect uri, api/issuer URL)을 얻거나, 인증/대상 서비스 선택이 필요할 때 사용한다.
 ---
 
 # MyIAM CLI
@@ -53,6 +53,8 @@ myiam-cli tenant member read <tenant-uid> <service-user-uid>
 - `tenant list`의 `unassigned_services`는 어느 조직에도 없는 FREE 서비스, `unmanaged_tenant_services`는 조직에 속했지만 **내가 그 조직 역할이 없는** 서비스다(조회만 되고 그 조직 관리는 전부 403). 서비스는 정상 운영된다 — 서비스 역할과 조직 역할은 별개 축이다.
 - **삭제 상태는 2단계다.** 삭제를 요청했지만 승인 전이면 `status`는 여전히 `NORMAL`이고 `pending_request_types`에만 `DELETE`가 잡힌다. 승인 후에야 `status: PENDING_DELETE` + `delete_after`가 채워진다.
 - 조직 역할은 `OWNER`(조직당 1명) / `ADMIN`(일상 운영은 OWNER와 동등) / `MANAGER`(조회 전용).
+
+- 조직 기능은 관리자 콘솔에서 아직 MyIAM 관리자에게만 열려 있다(정식 오픈 전 임시 게이트). CLI는 게이트를 두지 않고 서버 권한만 따르므로, 콘솔 메뉴에 조직이 안 보인다는 말을 들어도 CLI 조회는 정상이다.
 - 등급을 올리려는 요청을 받으면 CLI로 시도하지 말고 **관리자 콘솔에서 등급 변경을 요청**하도록 안내한다 — 플랫폼 승인이 필요하고 결제 정보가 얽힌다. `tenant request list`로 그 요청이 승인/거절됐는지는 확인해줄 수 있다.
 
 ## OAuth2 클라이언트
@@ -70,7 +72,7 @@ Client Secret 생성은 CLI에 **없음** — 웹 콘솔 전용 (명확한 사�
 ## 서비스 개요 / 정보 / UI / 티어 / API
 
 ```bash
-myiam-cli service main read                       # svc main read — 읽기 전용 대시보드
+myiam-cli service main read                       # svc main read — 읽기 전용 대시보드 (약관 목록은 노출 중인 것만)
 myiam-cli service main read --preview              # 로컬 브라우저 대시보드로 렌더링, Ctrl+C까지 블로킹
 
 myiam-cli service information read                 # svc info read
@@ -86,9 +88,47 @@ myiam-cli service tier read                         # 읽기 전용: effective_t
 
 myiam-cli service api read
 myiam-cli service api update --allowed-ips "1.2.3.4,5.6.7.8"
+
+myiam-cli service env                               # SDK 연동값 한 번에 (아래 참고)
 ```
 
-API Key 생성도 마찬가지로 CLI에 **없음** — 웹 콘솔 전용.
+API Key 생성도 마찬가지로 CLI에 **없음** — 웹 콘솔 전용. 두 값 모두 **읽을 수도 없다** — 서버가 해시만 보관하므로 `read` 응답에 값이 없고, `created_at`/`client_secret_issued_at`으로 발급 여부만 알 수 있다.
+
+### SDK 연동값 — `service env` 하나로 전부
+
+**myiam.io 개발 문서(quickstart)의 `.env` 예시에 나오는 값은 API Key/Client Secret을 빼면 전부 `service env` 하나로 얻는다.** 문서를 보고 값을 하나씩 찾아 여러 `read`를 호출하거나 사용자에게 되묻지 말고, 이 명령부터 실행한다.
+
+```bash
+myiam-cli service env            # JSON, 서버 1회 호출(/secured/user/context)
+myiam-cli service env -o table   # 사람이 .env로 옮겨 적을 때
+```
+
+| 출력 필드 | 쓰임 |
+|---|---|
+| `service_uid` | 서비스 식별자 |
+| `oauth2_client_id` | OAuth2 클라이언트 ID |
+| `oauth2_redirect_uri` | 로그인 콜백 |
+| `oauth2_post_logout_redirect_uri` | 로그아웃 후 이동 주소 |
+| `api_base_url` | REST API 서버 |
+| `issuer_url` | OIDC issuer 겸 로그인 화면 서버 |
+
+#### 앱 개발을 시작하기 전에: redirect URI 2종을 먼저 등록한다
+
+**앱을 새로 붙이는 작업이면 코드를 쓰기 전에 `redirect_uris`와 `post_logout_redirect_uris`부터 등록한다.** 이 둘이 비어 있거나 실제 앱 주소와 다르면 로그인/로그아웃이 앱으로 돌아올 곳이 없어 SDK 연동이 끝까지 가지 않는다 — 다 만들고 나서 발견하면 디버깅이 가장 오래 걸리는 지점이다. `service env` 결과의 `oauth2_redirect_uri`/`oauth2_post_logout_redirect_uri`가 비었는지부터 확인하고, 비었으면 사용자에게 앱이 뜰 주소를 물어 등록한다.
+
+```bash
+myiam-cli oc update \
+  --redirect-uris "http://localhost:3000/callback,https://app.example.com/callback" \
+  --post-logout-redirect-uris "http://localhost:3000,https://app.example.com"
+myiam-cli service env      # 등록 확인
+```
+
+- 여러 개는 쉼표로 구분한다. **로컬 개발 주소와 배포 주소를 처음부터 같이** 넣어두면 배포 시점에 다시 손대지 않아도 된다.
+- 서버는 등록된 값과 **정확히 일치**할 때만 통과시킨다 — 스킴(http/https), 포트, 경로, 끝 슬래시까지 앱이 실제로 쓰는 값 그대로 넣어야 한다. 모바일이면 커스텀 스킴(`myapp://callback`)이 그대로 들어간다.
+- `oc update`는 플래그로 줄 때 현재 설정을 읽어와 준 플래그만 덮으므로 다른 필드는 안전하다. 반대로 `--from-stdin`은 패널 전체를 대체한다.
+- `service env`가 보여주는 redirect URI는 대표값 하나다 — 등록된 전체 목록은 `oc read`의 `redirect_uris`/`post_logout_redirect_uris`로 확인한다.
+
+여기 없는 값은 API Key와 Client Secret 둘뿐이고, 읽을 수 없으므로 웹 콘솔에서 발급받아 사용자가 직접 넣어야 한다. 프레임워크별 변수 이름(`VITE_*`, `EXPO_PUBLIC_MYIAM_*` 등)은 CLI가 아니라 각 quickstart 문서에 있다 — 값은 여기서, 이름은 문서에서 가져다 조합한다.
 
 `--preview` (아래 `main read`, `information read`, `ui read`, `*-detail read` 명령에 있음)는 패널을 로컬 HTML 페이지(`127.0.0.1:0`)로 렌더링하고 브라우저를 연다; JSON 출력에 `preview_url`이 추가된다. 이건 JSON을 보기 편하게 만든 것일 뿐, admin 콘솔의 실제 `PreviewController`(별개 기능, `docs/preview.md` 참고)를 대체하는 게 아니다.
 
@@ -163,6 +203,8 @@ myiam-cli svc td publish <uid>                      # 이 버전 노출(재동�
 
 약관·정책과 그 버전 모두 `status`를 갖는다. `NORMAL`이 노출, `DRAFT`가 초안(사용자에게 안 보임)이다. 초안으로 여러 건을 미리 만들어 둔 뒤 한 번에 노출로 바꾸는 것이 의도된 사용법이다. **`term create`/`policy create`는 `--status`를 생략하면 DRAFT로 만든다**(관리자 콘솔과 동일). 버전(`term-detail`/`policy-detail`) 생성은 `NORMAL`이 기본이다.
 
+**에이전트가 약관·정책 본문을 작성할 때는 초안(DRAFT)까지만 만들고 `publish`/`revise`는 하지 않는다.** 사용자에게 그대로 노출되는 법적 문서이므로 사람이 내용을 검토한 뒤 직접 발행한다. 초안 생성과 `read --preview` 확인까지 마친 뒤, 발행 명령(`service term publish <uid>` 등)을 uid와 함께 안내하고 멈춘다.
+
 ```bash
 myiam-cli service term create --label "개인정보처리방침" --type REQUIRED   # DRAFT로 생성됨
 myiam-cli svc td create                                                  # 본문 작성 (stdin)
@@ -198,6 +240,8 @@ myiam-cli service term unpublish <개정판-uid>   # 개정판 → DRAFT, 직전
 
 구약관은 삭제되지 않고 `CLOSED`로 남는다(동의 이력 보존). 기본 `term list`에서는 감춰지고 `--filter all`로만 보인다.
 
+**개정은 `publish`로 끝나지 않는다.** 사용자에게 불리한 변경은 시행 30일 전 공지와 이메일 개별 통지가 법정 요건인데, 그 대량 고지 메일 발송은 관리자 콘솔 전용이라 CLI에 명령이 없다. `publish`까지 마쳤으면 "남은 고지 메일 발송은 관리자 콘솔에서 해야 한다"고 반드시 알린다.
+
 ## 사용자 필드 (`service field`)
 
 ```bash
@@ -217,12 +261,14 @@ echo '{"data":{"content":[{"uid":"...","section":1},...]}}' | myiam-cli service 
 ## 작업 흐름 가이드
 
 1. **최초 설정** → `login` (자동 선택된 서비스가 없으면 `service list` → `service use <uid>`). `service list`가 빈 배열(`[]`)을 반환하면 아직 [myiam.io](https://myiam.io)에 가입해 관리할 서비스를 만들지 않은 것이다 — CLI 명령을 더 시도하지 말고 사용자에게 myiam.io 가입 및 서비스 생성부터 안내한 뒤, 완료되면 다시 `service list`로 확인한다.
-2. **현재 설정 확인** → `service main read`로 개요 대시보드부터 보고, `information`/`ui`/`login-type`/`term`/`policy`/`field`로 세부 진입
-3. **필드 하나만 변경** → 해당 플래그 사용 (예: `service ui update --theme DARK`)
-4. **중첩/복잡한 데이터 변경** → `read | jq '{data:.data}' | jq로 수정 | update --from-stdin`
-5. **순서 변경** (`login-type`, `policy`, `term`, `field`) → `position`에 (플래그 없이, stdin으로) `{"data":{"content":[{"id1":"<uid>"},...]}}` 형태로 전달
-6. **변경 전 눈으로 확인** → 해당 `read --preview` (main/information/ui/term-detail/policy-detail만 지원); 이미 받은 JSON을 로컬에서 렌더링한 것일 뿐 실제 사용자 화면은 아님
-7. **스크립팅/CI** → `login`으로 인증 정보를 저장해두면(OS 키체인, 헤드리스 환경은 `~/.myiam/credentials.yaml` 폴백) 같은 명령을 그대로 헤드리스로 사용 가능
+2. **앱 개발 시작** → `oc update --redirect-uris ... --post-logout-redirect-uris ...`로 콜백 주소부터 등록 (로컬+배포 주소 함께). 이게 빠지면 로그인/로그아웃이 앱으로 못 돌아온다
+3. **SDK 연동 / .env 채우기** → `service env` 한 번 (개발 문서의 값은 여기서 다 나온다; API Key·Client Secret만 웹 콘솔)
+4. **현재 설정 확인** → `service main read`로 개요 대시보드부터 보고, `information`/`ui`/`login-type`/`term`/`policy`/`field`로 세부 진입
+5. **필드 하나만 변경** → 해당 플래그 사용 (예: `service ui update --theme DARK`)
+6. **중첩/복잡한 데이터 변경** → `read | jq '{data:.data}' | jq로 수정 | update --from-stdin`
+7. **순서 변경** (`login-type`, `policy`, `term`, `field`) → `position`에 (플래그 없이, stdin으로) `{"data":{"content":[{"id1":"<uid>"},...]}}` 형태로 전달
+8. **변경 전 눈으로 확인** → 해당 `read --preview` (main/information/ui/term-detail/policy-detail만 지원); 이미 받은 JSON을 로컬에서 렌더링한 것일 뿐 실제 사용자 화면은 아님
+9. **스크립팅/CI** → `login`으로 인증 정보를 저장해두면(OS 키체인, 헤드리스 환경은 `~/.myiam/credentials.yaml` 폴백) 같은 명령을 그대로 헤드리스로 사용 가능
 
 ## CLI에서 의도적으로 제외한 것
 

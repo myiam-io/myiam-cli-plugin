@@ -40,18 +40,20 @@ git clone https://github.com/myiam-io/myiam-cli-plugin.git
 codex --plugin-dir ./myiam-cli-plugin
 ```
 
-### Google Gemini CLI
+### Google Antigravity CLI
 
 ```bash
-gemini extensions install https://github.com/myiam-io/myiam-cli-plugin
+agy plugin install https://github.com/myiam-io/myiam-cli-plugin
 ```
 
 로컬 개발:
 
 ```bash
 git clone https://github.com/myiam-io/myiam-cli-plugin.git
-gemini extensions link ./myiam-cli-plugin
+agy plugin install ./myiam-cli-plugin
 ```
+
+전환기 동안에는 기존 Gemini CLI(`gemini extensions install ...`)로도 설치됩니다.
 
 ## 사전 요구사항
 
@@ -75,7 +77,7 @@ myiam-cli login
 |---|---|---|
 | Claude Code | `skills/myiam/SKILL.md` | `/myiam` 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
 | Codex CLI | `skills/myiam/SKILL.md` | `@myiam` 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
-| Gemini CLI | `skills/myiam/SKILL.md` | extension 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
+| Antigravity CLI | `skills/myiam/SKILL.md` | 플러그인 스킬 — MyIAM 서비스/관리자 설정 관련 질문 시 자동 트리거 |
 
 모든 파일이 myiam-cli 전체 명령어 레퍼런스를 포함합니다:
 - 로그인 및 대상 서비스 선택 (login, service list, service use)
@@ -99,10 +101,10 @@ claude plugin update myiam
 codex plugin upgrade myiam
 ```
 
-### Gemini CLI
+### Antigravity CLI
 
 ```bash
-gemini extensions install https://github.com/myiam-io/myiam-cli-plugin
+agy plugin install https://github.com/myiam-io/myiam-cli-plugin
 ```
 
 ## 제거
@@ -119,10 +121,10 @@ claude plugin uninstall myiam
 codex plugin uninstall myiam
 ```
 
-### Gemini CLI
+### Antigravity CLI
 
 ```bash
-gemini extensions uninstall myiam
+agy plugin uninstall myiam
 ```
 
 ## 라이선스

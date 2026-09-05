@@ -40,18 +40,20 @@ git clone https://github.com/myiam-io/myiam-cli-plugin.git
 codex --plugin-dir ./myiam-cli-plugin
 ```
 
-### Google Gemini CLI
+### Google Antigravity CLI
 
 ```bash
-gemini extensions install https://github.com/myiam-io/myiam-cli-plugin
+agy plugin install https://github.com/myiam-io/myiam-cli-plugin
 ```
 
 ローカル開発:
 
 ```bash
 git clone https://github.com/myiam-io/myiam-cli-plugin.git
-gemini extensions link ./myiam-cli-plugin
+agy plugin install ./myiam-cli-plugin
 ```
+
+移行期間中は従来の Gemini CLI（`gemini extensions install ...`）でもインストールできます。
 
 ## 前提条件
 
@@ -75,7 +77,7 @@ myiam-cli login
 |---|---|---|
 | Claude Code | `skills/myiam/SKILL.md` | `/myiam`スキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
 | Codex CLI | `skills/myiam/SKILL.md` | `@myiam`スキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
-| Gemini CLI | `skills/myiam/SKILL.md` | extensionスキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
+| Antigravity CLI | `skills/myiam/SKILL.md` | プラグインスキル — MyIAMサービス/管理設定関連の質問で自動トリガー |
 
 すべてのファイルにmyiam-cliの完全なコマンドリファレンスが含まれています:
 - ログインと対象サービスの選択（login, service list, service use）
@@ -99,10 +101,10 @@ claude plugin update myiam
 codex plugin upgrade myiam
 ```
 
-### Gemini CLI
+### Antigravity CLI
 
 ```bash
-gemini extensions install https://github.com/myiam-io/myiam-cli-plugin
+agy plugin install https://github.com/myiam-io/myiam-cli-plugin
 ```
 
 ## アンインストール
@@ -119,10 +121,10 @@ claude plugin uninstall myiam
 codex plugin uninstall myiam
 ```
 
-### Gemini CLI
+### Antigravity CLI
 
 ```bash
-gemini extensions uninstall myiam
+agy plugin uninstall myiam
 ```
 
 ## ライセンス
