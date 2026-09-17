@@ -67,7 +67,33 @@ myiam-cli oc token-presets                        # security|balanced|convenienc
 myiam-cli oc update --token-preset balanced       # 프리셋 적용 (다른 필드는 그대로 둠)
 ```
 
-Client Secret 생성은 CLI에 **없음** — 웹 콘솔 전용 (명확한 사용자 동작 + 1회성 노출이 필요해서 의도적으로 제외).
+Client Secret 생성은 CLI에 **없음** — 웹 콘솔 전용 (명확한 사용자 동작 + 1회성 노출이 필요해서 의도적으로 제외). **서비스를 새로 만든 직후라면 웹 콘솔에서 Client Secret과 API Key를 먼저 발급받아야** 서버 사이드 연동이 시작된다 — `oc read`의 `client_secret_issued_at`이 비어 있으면 아직 발급 전이고, 값 자체는 CLI로 읽을 수 없다.
+
+발급된 두 값은 **MyIAM SDK를 쓰는 앱의 환경변수 파일(`.env` 등)이나 SDK 설정에 직접 넣어야 한다** — 콘솔에서 1회만 보이므로 그 자리에서 복사한다. 나머지 값(`service_uid`, `oauth2_client_id`, redirect URI, `api_base_url`, `issuer_url`)은 [`service env`](#sdk-연동값--service-env-하나로-전부)로 한 번에 얻고, 프레임워크별 변수 이름은 각 SDK quickstart 문서를 따른다. 단 이 둘은 **서버 사이드 전용**이라 브라우저·앱 번들에 실리는 변수(`VITE_*`, `NEXT_PUBLIC_*`, `EXPO_PUBLIC_*` 등)에 넣으면 안 된다 — 그런 앱은 위 PKCE 구성으로 시크릿 없이 붙인다.
+
+### 퍼블릭 클라이언트(PKCE) vs 서버 클라이언트
+
+SPA·모바일처럼 시크릿을 숨길 수 없는 앱은 PKCE 퍼블릭 클라이언트로 잡아야 한다. **아래 세 값이 한 세트라 하나만 어긋나도 토큰 교환이 `invalid_client`로 떨어진다.**
+
+| | 퍼블릭(PKCE, SPA/모바일) | 서버(백엔드가 시크릿 보관) |
+|---|---|---|
+| `client_authentication_methods` | `none` | `client_secret_basic` (또는 `client_secret_post`) |
+| `settings.client.require-proof-key` | `true` | 선택 |
+| Client Secret | 발급 불필요(앱에 둘 수 없음) | 웹 콘솔에서 발급 필수 |
+
+`scopes`에 **`offline_access`가 없으면 refresh token이 발급되지 않아** access token이 만료되는 순간 로그아웃된 것처럼 보인다 — `authorization_grant_types`에도 `refresh_token`이 같이 있어야 한다.
+
+```bash
+myiam-cli oc read | jq '{data: (.data
+  | .client_authentication_methods = "none"
+  | .authorization_grant_types = "authorization_code,refresh_token"
+  | .scopes = "openid profile offline_access"
+  | .client_settings["settings.client.require-proof-key"] = true)}' \
+  | myiam-cli oc update --from-stdin
+```
+
+- `scopes`는 공백 구분, `authorization_grant_types`/`client_authentication_methods`는 쉼표 구분이다 (뒤 두 개는 고정 enum이라 오타면 `unknown value` 에러가 난다).
+- `require-proof-key`는 플래그가 없어 위 stdin 경로로만 켤 수 있고, `--from-stdin`은 패널 전체를 대체하므로 반드시 `oc read` 결과에서 시작한다.
 
 ## 서비스 개요 / 정보 / UI / 티어 / API
 
@@ -126,6 +152,7 @@ myiam-cli service env      # 등록 확인
 - 여러 개는 쉼표로 구분한다. **로컬 개발 주소와 배포 주소를 처음부터 같이** 넣어두면 배포 시점에 다시 손대지 않아도 된다.
 - 서버는 등록된 값과 **정확히 일치**할 때만 통과시킨다 — 스킴(http/https), 포트, 경로, 끝 슬래시까지 앱이 실제로 쓰는 값 그대로 넣어야 한다. 모바일이면 커스텀 스킴(`myapp://callback`)이 그대로 들어간다.
 - `oc update`는 플래그로 줄 때 현재 설정을 읽어와 준 플래그만 덮으므로 다른 필드는 안전하다. 반대로 `--from-stdin`은 패널 전체를 대체한다.
+- **등록한 문자열과 앱 코드의 값이 글자 단위로 같아야 한다.** SDK 초기화의 redirect URI와 로그아웃 호출의 post-logout redirect URI를 여기 등록한 값 그대로(보통 `.env`로) 넣는다 — 로그아웃 호출에 post-logout redirect URI를 빼먹으면 세션은 끊기는데 앱으로 돌아오지 못해 빈 화면에 멈춘다.
 - `service env`가 보여주는 redirect URI는 대표값 하나다 — 등록된 전체 목록은 `oc read`의 `redirect_uris`/`post_logout_redirect_uris`로 확인한다.
 
 여기 없는 값은 API Key와 Client Secret 둘뿐이고, 읽을 수 없으므로 웹 콘솔에서 발급받아 사용자가 직접 넣어야 한다. 프레임워크별 변수 이름(`VITE_*`, `EXPO_PUBLIC_MYIAM_*` 등)은 CLI가 아니라 각 quickstart 문서에 있다 — 값은 여기서, 이름은 문서에서 가져다 조합한다.
@@ -261,7 +288,7 @@ echo '{"data":{"content":[{"uid":"...","section":1},...]}}' | myiam-cli service 
 ## 작업 흐름 가이드
 
 1. **최초 설정** → `login` (자동 선택된 서비스가 없으면 `service list` → `service use <uid>`). `service list`가 빈 배열(`[]`)을 반환하면 아직 [myiam.io](https://myiam.io)에 가입해 관리할 서비스를 만들지 않은 것이다 — CLI 명령을 더 시도하지 말고 사용자에게 myiam.io 가입 및 서비스 생성부터 안내한 뒤, 완료되면 다시 `service list`로 확인한다.
-2. **앱 개발 시작** → `oc update --redirect-uris ... --post-logout-redirect-uris ...`로 콜백 주소부터 등록 (로컬+배포 주소 함께). 이게 빠지면 로그인/로그아웃이 앱으로 못 돌아온다
+2. **앱 개발 시작** → (a) 신규 서비스면 웹 콘솔에서 Client Secret·API Key 발급, (b) `oc update --redirect-uris ... --post-logout-redirect-uris ...`로 콜백 주소 등록(로컬+배포 함께)하고 같은 값을 앱 코드에도 설정, (c) PKCE 앱이면 `client_authentication_methods=none` + `require-proof-key=true` + `scopes`에 `offline_access`. 빠뜨리면 순서대로 로그인/로그아웃이 앱으로 못 돌아오거나 토큰 갱신이 안 된다
 3. **SDK 연동 / .env 채우기** → `service env` 한 번 (개발 문서의 값은 여기서 다 나온다; API Key·Client Secret만 웹 콘솔)
 4. **현재 설정 확인** → `service main read`로 개요 대시보드부터 보고, `information`/`ui`/`login-type`/`term`/`policy`/`field`로 세부 진입
 5. **필드 하나만 변경** → 해당 플래그 사용 (예: `service ui update --theme DARK`)
