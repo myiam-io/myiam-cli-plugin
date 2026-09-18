@@ -18,6 +18,7 @@ myiam-cli login                       # 브라우저 device-code 플로우, 이�
 myiam-cli service list                # 관리 가능한 서비스 목록 (기본 출력이 JSON)
 myiam-cli service use <uid>           # 이후 모든 패널 명령의 대상 서비스 선택
 myiam-cli service select              # 목록 조회 + 대화형 선택을 한 번에 (사람용; 에이전트는 list + use 사용)
+myiam-cli whoami                      # 로그인한 계정(uid, email)과 선택된 대상 서비스(uid, label, 내 역할) 확인
 myiam-cli logout                      # 저장된 인증 정보 삭제
 myiam-cli console [page]              # 웹 콘솔을 브라우저로 연다 (CLI에 없는 작업은 전부 여기서)
 ```
