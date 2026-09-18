@@ -86,6 +86,7 @@ myiam-cli login
 - SNS 로그인 포함 로그인 타입 (Naver, Kakao, Google, Apple)
 - 정책 및 정책 버전, 약관 및 약관 버전
 - 사용자 필드 (시스템 필드 및 커스텀 필드)
+- 웹 콘솔 열기 (console) — 서비스 생성, API Key·Client Secret 발급처럼 CLI에 없는 작업 안내
 
 ## 업데이트
 

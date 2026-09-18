@@ -86,6 +86,7 @@ myiam-cli login
 - SNSログインを含むログインタイプ（Naver、Kakao、Google、Apple）
 - ポリシーとポリシーバージョン、利用規約と利用規約バージョン
 - ユーザーフィールド（システムフィールド及びカスタムフィールド）
+- Webコンソールを開く（console）— サービス作成、API Key・Client Secret発行など、CLIにない作業の案内
 
 ## アップデート
 

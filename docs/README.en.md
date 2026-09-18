@@ -86,6 +86,7 @@ All files cover the full myiam-cli command reference:
 - Login types incl. SNS providers (Naver, Kakao, Google, Apple)
 - Policies & policy versions, terms & term versions
 - User fields (system & custom)
+- Opening the web console (`console`) — for what the CLI deliberately leaves out: creating a service, issuing an API Key or Client Secret
 
 ## Update
 

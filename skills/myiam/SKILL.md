@@ -19,20 +19,36 @@ myiam-cli service list                # 관리 가능한 서비스 목록 (기�
 myiam-cli service use <uid>           # 이후 모든 패널 명령의 대상 서비스 선택
 myiam-cli service select              # 목록 조회 + 대화형 선택을 한 번에 (사람용; 에이전트는 list + use 사용)
 myiam-cli logout                      # 저장된 인증 정보 삭제
+myiam-cli console [page]              # 웹 콘솔을 브라우저로 연다 (CLI에 없는 작업은 전부 여기서)
 ```
 
 `login`은 인터랙티브 프롬프트 없이(헤드리스/CI에서도 그대로 동작) JSON 출력에 `target_service_uid`와 함께 `target_service_label`/`services`(접근 가능한 서비스 전체 목록, `service list`와 동일한 형태)를 담아 보여준다 — 이전에 선택한 서비스가 있으면 복원하고, 없으면 첫 번째 서비스를 자동 선택한다. `target_service_label`/`services`는 best-effort라 이미 서비스가 선택돼 있는 상태에서 이 부가 조회만 실패하면 로그인 자체는 성공한 채로 두 필드만 빠질 수 있고, `--quiet`에서는 애초에 조회하지 않아 항상 빠진다. 다른 서비스로 바꾸려면 `service use <uid>`(에이전트) 또는 `service select`(사람, 대화형)를 사용한다.
 
-`login`/`logout`/`--preview`가 여는 브라우저는 `MYIAM_BROWSER` 환경변수로 고른다: 미설정은 OS 기본, `none`(열지 않음 — URL은 stderr에 출력된다), `chrome`/`firefox`/`edge`/`brave`, `safari`/`arc`(macOS 전용), `terminal-browser`(현재 터미널 탭의 terminal-browser에 새 탭, 없으면 분할 창으로 새로 띄움), `custom`(`MYIAM_BROWSER_COMMAND='firefox --private-window %s'`처럼 명령 지정, 셸을 거치지 않음). 실행에 실패하면 경고 후 OS 기본 브라우저로 연다. `login`과 `logout`은 같은 브라우저로 열어야 로그아웃 때 그 브라우저의 myiam 세션 쿠키가 정리된다.
+`login`/`logout`/`console`/`--preview`가 여는 브라우저는 `MYIAM_BROWSER` 환경변수로 고른다: 미설정은 OS 기본, `none`(열지 않음 — URL은 stderr에 출력된다), `chrome`/`firefox`/`edge`/`brave`, `safari`/`arc`(macOS 전용), `terminal-browser`(현재 터미널 탭의 terminal-browser에 새 탭, 없으면 분할 창으로 새로 띄움), `custom`(`MYIAM_BROWSER_COMMAND='firefox --private-window %s'`처럼 명령 지정, 셸을 거치지 않음). 실행에 실패하면 경고 후 OS 기본 브라우저로 연다. `login`과 `logout`은 같은 브라우저로 열어야 로그아웃 때 그 브라우저의 myiam 세션 쿠키가 정리된다.
+
+### 웹 콘솔을 열어야 할 때는 `console` — `open`/`xdg-open`을 직접 실행하지 않는다
+
+서비스 생성, API Key·Client Secret 발급, 가입자 관리처럼 CLI에 명령이 없는 작업은 웹 콘솔에서만 가능하다. 이때 **반드시 `myiam-cli console <page>`를 쓴다** — `open`/`xdg-open`/`start`를 직접 부르면 사용자가 `MYIAM_BROWSER`로 고른 브라우저(로그인돼 있는 그 브라우저)를 건너뛰게 된다. URL은 항상 stderr에도 출력되므로 브라우저를 못 여는 환경에서도 사용자에게 줄 주소가 나온다.
+
+```bash
+myiam-cli console                # 콘솔 홈
+myiam-cli console new-service    # 서비스 생성 (/startup)
+myiam-cli console api            # API 설정 — API Key 발급
+myiam-cli console oc             # OAuth2 클라이언트 — Client Secret 발급
+myiam-cli console user           # 가입자 목록 (CLI 미지원 영역)
+myiam-cli console docs           # 개발 문서
+```
+
+그 밖에 `home` `main` `information`(`info`) `ui` `login-type`(`lt`) `field` `term` `policy` `tier` `tenant`를 받고, 이름이 없는 페이지는 `/`로 시작하는 경로를 그대로 준다(`myiam-cli console /service/term/<uid>/detail`). 전체 목록은 `myiam-cli schema`의 `commands.console.pages`. 콘솔이 보여주는 서비스는 콘솔 자신의 선택을 따르므로, CLI의 `service use`와 다른 서비스를 보고 있을 수 있다 — 사용자에게 콘솔 화면의 서비스명을 확인하도록 안내한다.
 
 `service`/`oauth2-client` 패널 명령은 모두 대상 서비스 선택(`My-Target-Service` 헤더)이 필요하다 — `service use` 전에 호출하면 `TARGET_SERVICE_REQUIRED` 에러가 난다. `config get`/`set`은 없음 — 실행 시점에 바꿀 수 있는 값은 대상 서비스와 위 브라우저 선택뿐이다.
 
 ### 서비스를 처음 만드는 경우 — 웹 콘솔에서 생성 + API Key 발급
 
-서비스 생성과 API Key 발급은 CLI에 명령이 없다. `service list`가 빈 배열(`[]`)이거나 사용자가 "새 서비스를 만들고 싶다"고 하면 CLI 명령을 찾지 말고, **사용자의 브라우저로 https://myiam.io 를 직접 열어준 뒤** 아래 순서를 안내한다 (macOS `open https://myiam.io`, Linux `xdg-open https://myiam.io`, Windows `start https://myiam.io`, 열 수 없는 환경이면 URL만 제시).
+서비스 생성과 API Key 발급은 CLI에 명령이 없다. `service list`가 빈 배열(`[]`)이거나 사용자가 "새 서비스를 만들고 싶다"고 하면 CLI 명령을 찾지 말고, **`myiam-cli console new-service`로 서비스 생성 페이지를 열어준 뒤** 아래 순서를 안내한다 (`open`/`xdg-open`을 직접 실행하지 않는다 — 위 [웹 콘솔을 열어야 할 때](#웹-콘솔을-열어야-할-때는-console--openxdg-open을-직접-실행하지-않는다) 참고. 브라우저를 열 수 없는 환경이면 이 명령이 stderr에 출력한 URL을 그대로 제시한다).
 
 1. **가입/로그인 후 관리자 콘솔에서 서비스를 생성한다.**
-2. **API Key 발급** — 서비스 메인 페이지의 **API 설정** 섹션에서 **키 아이콘**을 클릭한다. 같은 섹션에서 Endpoint와 서비스 UID도 보인다. (문서: https://myiam.io/docs/admin/service/api-settings)
+2. **API Key 발급** — `myiam-cli console api`로 열고 **API 설정** 섹션의 **키 아이콘**을 클릭한다. 같은 섹션에서 Endpoint와 서비스 UID도 보인다. (문서: https://myiam.io/docs/admin/service/api-settings)
 3. API Key는 **생성 순간 한 번만 표시**되므로 그 자리에서 앱의 설정(`.env` 등)에 붙여넣도록 안내한다 — 어느 변수에 둘지는 [발급된 키를 앱에 넣는 위치](#발급된-키를-앱에-넣는-위치) 참고. 이후 콘솔·CLI 어디서도 원본을 다시 볼 수 없고, 잃어버리면 재생성해야 하며 **재생성하면 기존 키는 즉시 무효화**된다 — 이미 운영 중인 서비스라면 재생성 전에 사용자에게 확인한다.
 4. 사용자가 완료했다고 하면 CLI로 돌아와 이어간다:
 
@@ -106,7 +122,7 @@ myiam-cli oc token-presets                        # security|balanced|convenienc
 myiam-cli oc update --token-preset balanced       # 프리셋 적용 (다른 필드는 그대로 둠)
 ```
 
-Client Secret 생성은 CLI에 **없음** — 웹 콘솔 전용 (명확한 사용자 동작 + 1회성 노출이 필요해서 의도적으로 제외). **Client Secret은 서버 클라이언트(`client_authentication_methods`가 `client_secret_basic`/`client_secret_post`)일 때만 필요하다** — PKCE 퍼블릭 클라이언트(`none`)면 발급하지 않는다. 필요할 때는 웹 콘솔의 **서비스 > OAuth2 설정 > Client 기본 정보**에서 Client Secret 옆 **키 아이콘**으로 발급한다(문서: https://myiam.io/docs/admin/service/oauth2-settings). API Key와 마찬가지로 한 번만 표시되고 재생성하면 기존 값이 즉시 무효화된다. `oc read`의 `client_secret_issued_at`이 비어 있으면 아직 발급 전이고, 값 자체는 CLI로 읽을 수 없다.
+Client Secret 생성은 CLI에 **없음** — 웹 콘솔 전용 (명확한 사용자 동작 + 1회성 노출이 필요해서 의도적으로 제외). **Client Secret은 서버 클라이언트(`client_authentication_methods`가 `client_secret_basic`/`client_secret_post`)일 때만 필요하다** — PKCE 퍼블릭 클라이언트(`none`)면 발급하지 않는다. 필요할 때는 `myiam-cli console oc`로 연 **서비스 > OAuth2 설정 > Client 기본 정보**에서 Client Secret 옆 **키 아이콘**으로 발급한다(문서: https://myiam.io/docs/admin/service/oauth2-settings). API Key와 마찬가지로 한 번만 표시되고 재생성하면 기존 값이 즉시 무효화된다. `oc read`의 `client_secret_issued_at`이 비어 있으면 아직 발급 전이고, 값 자체는 CLI로 읽을 수 없다.
 
 ### 발급된 키를 앱에 넣는 위치
 
@@ -398,7 +414,7 @@ echo '{"data":{"content":[{"uid":"...","section":1},...]}}' | myiam-cli service 
 
 ## 작업 흐름 가이드
 
-1. **최초 설정** → `login` (자동 선택된 서비스가 없으면 `service list` → `service use <uid>`). `service list`가 빈 배열(`[]`)을 반환하면 아직 [myiam.io](https://myiam.io)에 가입해 관리할 서비스를 만들지 않은 것이다 — CLI 명령을 더 시도하지 말고 [서비스를 처음 만드는 경우](#서비스를-처음-만드는-경우--웹-콘솔에서-생성--api-key-발급) 순서대로 브라우저로 myiam.io를 열어 서비스 생성·API Key 발급을 안내한 뒤, 완료되면 다시 `service list`로 확인한다.
+1. **최초 설정** → `login` (자동 선택된 서비스가 없으면 `service list` → `service use <uid>`). `service list`가 빈 배열(`[]`)을 반환하면 아직 [myiam.io](https://myiam.io)에 가입해 관리할 서비스를 만들지 않은 것이다 — CLI 명령을 더 시도하지 말고 [서비스를 처음 만드는 경우](#서비스를-처음-만드는-경우--웹-콘솔에서-생성--api-key-발급) 순서대로 `myiam-cli console new-service`로 콘솔을 열어 서비스 생성·API Key 발급을 안내한 뒤, 완료되면 다시 `service list`로 확인한다.
 2. **앱 개발 시작** → (a) 신규 서비스면 웹 콘솔에서 API Key 발급([절차](#서비스를-처음-만드는-경우--웹-콘솔에서-생성--api-key-발급)) — Client Secret은 (c)에서 서버 클라이언트로 정해졌을 때만 발급, (b) `oc update --redirect-uris ... --post-logout-redirect-uris ...`로 콜백 주소 등록(로컬+배포 함께)하고 같은 값을 앱 코드에도 설정, (c) PKCE 앱이면 `client_authentication_methods=none` + `require-proof-key=true` + `scopes`에 `offline_access`(Client Secret 불필요), 백엔드가 시크릿을 보관하는 서버 앱이면 그때 웹 콘솔에서 Client Secret 발급. 빠뜨리면 순서대로 로그인/로그아웃이 앱으로 못 돌아오거나 토큰 갱신이 안 된다
 3. **SDK 연동 / .env 채우기** → `service env` 한 번 (개발 문서의 값은 여기서 다 나온다; API Key와 서버 클라이언트의 Client Secret만 웹 콘솔 — 넣을 위치는 [표](#발급된-키를-앱에-넣는-위치) 참고)
 4. **현재 설정 확인** → `service main read`로 개요 대시보드부터 보고, `information`/`ui`/`login-type`/`term`/`policy`/`field`로 세부 진입
