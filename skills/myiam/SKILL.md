@@ -56,10 +56,12 @@ myiam-cli service env            # 나머지 .env 값
 
 | 종료 | 코드 | 다음 행동 |
 |---|---|---|
-| 1 | `AUTH_REQUIRED` | 세션 만료·미로그인 → 사용자에게 `myiam-cli login` 안내 |
+| 1 | `AUTH_REQUIRED` | 미로그인, 또는 서버가 토큰·세션 갱신을 거부 → 사용자에게 `myiam-cli login` 안내. 단순 만료는 CLI가 알아서 갱신하므로 이 코드로 오지 않는다 |
 | 2 | `FORBIDDEN` | 역할 부족 → 관리자 콘솔이나 권한 있는 계정 필요 |
 | 3 | `SERVER_ERROR`(5xx) / `REQUEST_ERROR`(서버 도달 실패) | 잠시 후 같은 명령 재시도 |
-| 4 | `NOT_FOUND`, `REQUEST_INVALID`, `TARGET_SERVICE_REQUIRED`, `INPUT_ERROR`, `PARSE_ERROR`, `VALIDATION_ERROR` | 요청을 고쳐야 한다 — uid 확인, 리소스 상태 확인(예: DRAFT 아닌 약관은 `publish` 불가), stdin·플래그 수정 | 공통 플래그: `--output, -o json|table` (기본 json), `--quiet, -q` (성공 시 출력 생략).
+| 4 | `NOT_FOUND`, `REQUEST_INVALID`, `TARGET_SERVICE_REQUIRED`, `INPUT_ERROR`, `PARSE_ERROR`, `VALIDATION_ERROR` | 요청을 고쳐야 한다 — uid 확인, 리소스 상태 확인(예: DRAFT 아닌 약관은 `publish` 불가), stdin·플래그 수정 |
+
+공통 플래그: `--output, -o json|table` (기본 json), `--quiet, -q` (성공 시 출력 생략).
 
 ## 입력 관례
 
@@ -232,7 +234,8 @@ myiam-cli service policy publish <uid>   # 노출 / draft <uid> 로 숨김
 echo '{"data":{"content":[{"id1":"uidA"},...]}}' | myiam-cli service policy position   # 플래그 없음
 
 myiam-cli svc pd list <service-policy-uid>          # 항목별 content 생략 — 본문은 read <uid>로 확인
-myiam-cli svc pd create                             # 플래그 없음, stdin: service_policy_uid, language, title, content, version_string, new_expire_at, exposed_at, status(생략 시 NORMAL)
+myiam-cli svc pd create                             # 플래그 없음, stdin: service_policy_uid, label, version_code, language, title, content, version_string, new_expire_at, exposed_at, status(생략 시 NORMAL)
+                                                     # label(이름) / version_code(첫 본문 1, 이후 +1)는 필수 — 약관 섹션의 "버전의 label / version_code" 참고
                                                      # exposed_at은 이름과 달리 사실상 필수, 포맷은 yyyy-MM-ddTHH:mm:ss (오프셋/Z 없는 로컬시간, 예: 2026-07-21T00:00:00)
 myiam-cli svc pd read <uid>
 myiam-cli svc pd read <uid> --preview               # content HTML을 실사용자 화면 스타일 문서 카드로 렌더링
@@ -254,7 +257,7 @@ myiam-cli service policy read <uid> | jq '{data: (.data | .title = {"ko":"이용
 
 ```bash
 myiam-cli service term list            # --filter all 로 종료된 구약관까지
-myiam-cli service term create --label "개인정보처리방침" --type REQUIRED   # --status 생략 시 DRAFT
+myiam-cli service term create --label "개인정보 수집·이용 동의" --type REQUIRED   # --status 생략 시 DRAFT
 myiam-cli service term read <uid>
 myiam-cli service term update          # 플래그 없음, 항상 stdin
 myiam-cli service term delete <uid>
@@ -264,8 +267,9 @@ myiam-cli service term unpublish <uid> # 발행 취소 — 개정판을 초안�
 myiam-cli service term revise <uid>    # 재동의가 필요한 개정 초안 생성
 echo '{"data":{"content":[{"id1":"uidA"},...]}}' | myiam-cli service term position   # 플래그 없음
 
-myiam-cli svc td list <service-term-uid>
-myiam-cli svc td create                             # 플래그 없음, stdin: service_term_uid, language, title, content, version_string, status(생략 시 NORMAL)
+myiam-cli svc td list <service-term-uid>          # 항목별 content 생략 — 본문은 read <uid>로 확인
+myiam-cli svc td create                             # 플래그 없음, stdin: service_term_uid, label, version_code, language, title, content, version_string, status(생략 시 NORMAL)
+                                                     # label(이름) / version_code(첫 본문 1, 이후 +1)는 필수 — 아래 절 참고
 myiam-cli svc td read <uid>
 myiam-cli svc td read <uid> --preview
 myiam-cli svc td update                             # 플래그 없음
@@ -274,6 +278,47 @@ myiam-cli svc td publish <uid>                      # 이 버전 노출(재동�
 ```
 
 `type`은 약관은 REQUIRED/OPTIONAL, 정책은 SINGLE/BOARD — 그 외는 두 리소스가 서로 대칭이다.
+
+### 어떤 약관·정책을 만들어야 하는가 — 사용자에게 확인하고 정한다
+
+`term`은 **동의를 받고 이력이 남는 항목**, `policy`는 **동의 없이 공개만 하는 문서**(푸터 링크)다. 문서의 법적 성격에 따라 어느 쪽에 만들지가 갈린다 — 개인정보처리방침은 공개 의무 문서라 `policy`이고, 이것을 `term`으로 만들면 공개 문서를 동의 항목으로 받게 된다. 반대로 수집·이용 동의를 `policy`로만 두면 동의 이력이 남지 않는다.
+
+| 문서 | 리소스 | 언제 필요한가 |
+|---|---|---|
+| 서비스 이용약관 | `term` REQUIRED + 공개용 `policy` | 사실상 항상 |
+| 개인정보 수집·이용 동의 | `term` REQUIRED | 항상 — 필수 항목만 최소로 |
+| 개인정보처리방침 | **`policy`** (동의 대상 아님, 공개 의무) | 항상 |
+| 제3자 제공 동의 | `term`, 보통 OPTIONAL | **실제로 제3자에게 제공할 때만.** 받는 자·항목·목적·보유기간을 특정해야 한다 |
+| 처리 위탁(결제대행·문자발송·클라우드 등) | 동의 불필요 — 처리방침에 수탁자 공개 | 제3자 제공과 혼동하지 말 것 |
+| 마케팅·광고 수신 동의 | `term` OPTIONAL, 채널별로 분리 | 광고성 정보를 보낼 때. 야간(21~08시) 발송은 별도 동의 |
+| 민감정보·고유식별정보 | `term` REQUIRED, 항목별 별도 동의 | 해당 정보를 수집할 때만 |
+| 국외 이전 | `term` 또는 처리방침 고지 | 국외로 이전할 때 |
+| 만 14세 미만 법정대리인 동의 | **MyIAM에 기능 없음** | 아동 가입을 허용한다면 서비스가 직접 구현해야 한다 |
+
+- **선택 동의를 REQUIRED로 묶지 않는다** — 거부해도 가입이 되어야 하는 항목은 OPTIONAL이다. 서비스 제공에 필수불가결하지 않은 제3자 제공·마케팅이 여기 해당한다.
+- **동의서 본문의 "수집 항목"은 `service field list` 결과와 일치시킨다.** 실제 수집 항목과 다른 동의는 의미가 없다. 본문에는 목적·항목·보유기간·거부할 권리와 그에 따른 불이익을 담는다.
+- 해외 SNS 로그인(`service login-type list`의 Google/Apple 등)을 켰다면 국외 이전 고지 대상인지 확인한다.
+- **선택 동의를 가입 후에 철회하는 화면은 사용자 화면에 없다.** 동의가 나오는 곳은 `service ui preview --page signup`("서비스 정책 동의") 하나뿐이고, `edit_profile`은 입력 필드 수정만 한다. 마케팅 수신 동의를 껐다 켜는 경로가 필요하면 서비스가 직접 구현해야 한다(광고 수신 거부 수단 제공은 법정 의무다).
+- `policy`·`notice` 탭이 렌더링하는 것은 `policy` 리소스(공개 문서와 그 개정 이력)다 — 처리방침을 `term`으로 만들면 이 공개 페이지에 뜨지 않는다.
+- **어떤 동의가 필요한지는 서비스가 실제로 하는 처리에 달렸다.** 에이전트가 단정해서 만들지 말고 "제3자에게 제공하는가 / 광고를 보내는가 / 민감정보를 받는가 / 만 14세 미만 가입을 받는가"를 먼저 묻고, 확인된 것만 DRAFT로 만든다.
+- 동의 이력 조회와 증적은 CLI에 없다(관리자 콘솔 전용).
+
+공개 문서는 `policy`로 만들고 푸터에 연결한다:
+
+```bash
+myiam-cli service policy create --label "개인정보처리방침" --type SINGLE --path privacy   # 동의가 아니라 공개
+myiam-cli service policy read <uid> | jq '{data: (.data | .title = {"ko":"개인정보처리방침"})}' \
+  | myiam-cli service policy update                                                      # title은 create에 플래그가 없다
+```
+
+### 버전의 `label` / `version_code` — 서버가 안 막는 필수값
+
+`svc td create`/`svc pd create`의 `label`(이름)과 `version_code`(버전 코드)는 관리자 콘솔에서 필수 입력인데 **서버가 검증하지 않아 빼먹어도 create가 성공한다** — `label`은 빈 문자열, `version_code`는 `0`으로 저장된다. 항상 둘 다 넣는다.
+
+- `label` — 콘솔 버전 목록의 "이름" 열. 보통 상위 약관·정책의 `label`을 그대로 쓴다.
+- `version_code` — **사용자에게 보여줄 본문을 고르는 정렬 키**(서버가 version_code 내림차순으로 하나를 뽑는다). **첫 본문은 `1`, 같은 약관·정책에 버전을 추가할 때마다 +1.** 생략해서 전부 `0`이 되면 동률이라 어느 본문이 노출될지 정해지지 않는다. 다음 값은 `svc td list <상위-uid>`(정책은 `svc pd list`)로 현재 최댓값을 확인해 정한다.
+
+`create`뿐 아니라 `update`도 마찬가지다 — 패널 `update`는 전체 대체라 `label`/`version_code`를 빼고 보내면 기존 값이 빈 문자열과 `0`으로 덮인다. 항상 `read` 결과에서 시작한다.
 
 ### 노출 상태 (`status`) — 초안으로 준비했다가 한 번에 공개하기
 
@@ -285,13 +330,13 @@ myiam-cli svc td publish <uid>                      # 이 버전 노출(재동�
 - 상위가 **DRAFT**(방금 `create`/`revise`로 만든 것) → 버전은 `status`를 생략(NORMAL)한다. 상위가 숨겨져 있어 공개되지 않고, 나중에 사람이 상위를 `publish`하면 본문이 함께 보인다. 여기에 DRAFT를 넣으면 상위를 발행해도 본문 버전이 숨겨져 **빈 약관이 노출**된다. 초안 생성과 `read --preview` 확인까지 마친 뒤, 발행 명령(`service term publish <uid>` 등)을 uid와 함께 안내하고 멈춘다.
 
 ```bash
-myiam-cli service term create --label "개인정보처리방침" --type REQUIRED   # DRAFT로 생성됨
-echo '{"data":{"service_term_uid":"<uid>","language":"ko","title":"...","content":"<p>...</p>"}}' \
+myiam-cli service term create --label "개인정보 수집·이용 동의" --type REQUIRED   # DRAFT로 생성됨
+echo '{"data":{"service_term_uid":"<uid>","label":"개인정보 수집·이용 동의","version_code":1,"language":"ko","title":"...","content":"<p>...</p>"}}' \
   | myiam-cli svc td create                                                # 본문 작성 — 상위가 DRAFT라 status 생략
 
 # 이미 노출 중인 약관에 본문 버전을 추가할 때만:
-echo '{"data":{"service_term_uid":"<노출중-uid>","language":"ko","title":"...","content":"<p>...</p>","status":"DRAFT"}}' \
-  | myiam-cli svc td create
+echo '{"data":{"service_term_uid":"<노출중-uid>","label":"개인정보 수집·이용 동의","version_code":2,"language":"ko","title":"...","content":"<p>...</p>","status":"DRAFT"}}' \
+  | myiam-cli svc td create                                                # version_code는 기존 최댓값+1
 
 myiam-cli service term publish <uid>        # 노출 (관리자 콘솔의 "지금부터 사용")
 myiam-cli service term draft <uid>          # 숨김 (관리자 콘솔의 "초안으로 변경")
@@ -315,6 +360,7 @@ myiam-cli service term draft <uid>          # 숨김 (관리자 콘솔의 "초�
 ```bash
 myiam-cli service term revise <uid>     # 같은 계열의 새 DRAFT 약관 생성 (본문은 복사되지 않음)
 myiam-cli svc td create                 # 새 약관의 본문 작성 (stdin, service_term_uid = 위에서 만든 uid, status 생략 — 상위가 DRAFT)
+                                        # 개정판은 uid가 다른 새 약관이므로 version_code는 다시 1부터, label도 새로 넣는다
 myiam-cli service term publish <새-uid>  # 기존 약관 종료 + 전원 재동의
 myiam-cli service term list --filter all # 종료(CLOSED)된 구약관까지 포함해 이력 확인
 ```
