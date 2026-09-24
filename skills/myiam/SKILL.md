@@ -224,6 +224,44 @@ myiam-cli service env      # 등록 확인
 
 예외적으로 `service ui preview`(별도 명령, `service ui read`의 플래그가 아님)는 admin 콘솔이 쓰는 바로 그 실제 preview 엔드포인트를 호출해 로그인/가입 등 실제 사용자 화면을 지금 설정된 브랜딩/테마 그대로 렌더링한다 (목업이 아니라 픽셀 단위로 동일) — `--page`(기본 `login`; login/signup/signup_form/deregister/edit_profile/edit_email/password_set/password_reset/passkey/policy/notice)로 처음 열 화면을, `--theme`(`light`|`dark`)로 테마를, `--lang`(`ko`|`en`|`ja`|`zh`, 기본 `ko`)로 언어를 고른다. 연 뒤에는 명령을 다시 실행하지 않고도 페이지 자체의 탭/Light-Dark 토글/언어 드롭다운으로 계속 바꿔볼 수 있다.
 
+#### 인증 코드를 쓰기 전에: 해당 프레임워크 quickstart 문서를 실제로 읽는다
+
+**로그인·회원가입·콜백·로그아웃 코드를 직접 짜지 않는다.** 이 값들을 쓰는 쪽은 MyIAM SDK고, OAuth2 흐름을 기억에 의존해 손으로 구현하면 PKCE 상태 저장 위치, state 검증, 콜백 실패 처리에서 조용히 어긋난다 — 그 증상은 대부분 "콜백까지는 오는데 로그인이 끝나지 않는다"로 나타나 원인을 찾기 가장 어렵다. 앱에 인증을 붙이는 작업이면 **코드를 쓰기 전에 아래 문서를 웹 조회 도구(Claude Code의 WebFetch 등, 에이전트마다 이름이 다르다)로 가져와 그 코드를 기준으로 삼는다.**
+
+| 프레임워크 | 문서 |
+|---|---|
+| Next.js (서버 SDK) | https://myiam.io/docs/quickstart/nextjs |
+| React·SPA (클라이언트 SDK) | https://myiam.io/docs/quickstart/react |
+| Expo / React Native | https://myiam.io/docs/quickstart/expo |
+| Flutter | https://myiam.io/docs/quickstart/flutter |
+| Spring Boot | https://myiam.io/docs/quickstart/spring-boot |
+| 그 밖의 웹 프레임워크 | https://myiam.io/docs/sdk/web/server (서버) · https://myiam.io/docs/sdk/web/client (브라우저) |
+
+Vue·NestJS·iOS·Android quickstart는 아직 준비 중이라 내용이 없다 — 이 경우 위 Web SDK 레퍼런스를 대신 읽는다. 문서 전체를 한 번에 받고 싶으면 https://myiam.io/llms-full.txt, 목차만 필요하면 https://myiam.io/llms.txt.
+
+#### 회원가입이 끝난 뒤의 동작은 서비스 설정이 정한다 — `register_user`
+
+**"가입은 됐는데 다시 로그인 화면이 뜬다", "콜백에 코드가 왔는데 로그인이 끝나지 않는다"는 신고를 받으면 앱 코드보다 이 설정을 먼저 본다.** 기본값 그대로면 정상 동작하지만, 꺼 두면 앱 코드가 아무리 맞아도 그 증상이 난다.
+
+```bash
+myiam-cli svc info read | jq '.data.register_user'
+```
+
+| 필드 | 기본값 | 꺼져 있을 때/켜져 있을 때 |
+|---|---|---|
+| `auto_login` | **ON**(미설정 포함) | OFF면 가입 완료 후 자동 로그인이 생략되어 로그인 화면이 한 번 더 뜬다. 방금 만든 계정으로 사용자가 직접 로그인해야 앱으로 돌아온다 |
+| `manual_signup` | OFF | ON이면 콜백이 인가 코드 대신 가입 토큰(`?token=`)을 들고 돌아온다. 앱이 API Key로 가입을 확정(`completeRegistration`)하고 응답의 `redirect_url`로 보내야 코드를 받는다 — Web SDK의 `handleCallback()`은 이 단계를 처리하지 않고 `manual_signup_unsupported`로 실패한다 |
+| `manual_prepare` | OFF | ON이면 약관 동의 다음이 MyIAM 가입 폼이 아니라 서비스가 지정한 `prepare_callback_url`로 넘어간다 |
+
+세 값 모두 `svc info update --from-stdin`으로 바꾼다. **`--from-stdin`은 패널 전체를 대체하므로 반드시 `read` 결과에서 시작한다.**
+
+```bash
+myiam-cli svc info read | jq '{data: (.data | .register_user.auto_login = true)}' \
+  | myiam-cli svc info update --from-stdin
+```
+
+`manual_signup`/`manual_prepare`는 자체 가입 백엔드를 붙인 서비스를 위한 것이다 — 사용자가 그런 구성을 의도하지 않았는데 켜져 있으면 끄자고 제안한다. 화면에서 보려면 `myiam-cli console info`.
+
 ## 로그인 타입 (`service login-type`, 별칭 `svc lt`)
 
 ```bash
@@ -418,12 +456,14 @@ echo '{"data":{"content":[{"uid":"...","section":1},...]}}' | myiam-cli service 
 1. **최초 설정** → `login` (자동 선택된 서비스가 없으면 `service list` → `service use <uid>`). `service list`가 빈 배열(`[]`)을 반환하면 아직 [myiam.io](https://myiam.io)에 가입해 관리할 서비스를 만들지 않은 것이다 — CLI 명령을 더 시도하지 말고 [서비스를 처음 만드는 경우](#서비스를-처음-만드는-경우--웹-콘솔에서-생성--api-key-발급) 순서대로 `myiam-cli console new-service`로 콘솔을 열어 서비스 생성·API Key 발급을 안내한 뒤, 완료되면 다시 `service list`로 확인한다.
 2. **앱 개발 시작** → (a) 신규 서비스면 웹 콘솔에서 API Key 발급([절차](#서비스를-처음-만드는-경우--웹-콘솔에서-생성--api-key-발급)) — Client Secret은 (c)에서 서버 클라이언트로 정해졌을 때만 발급, (b) `oc update --redirect-uris ... --post-logout-redirect-uris ...`로 콜백 주소 등록(로컬+배포 함께)하고 같은 값을 앱 코드에도 설정, (c) PKCE 앱이면 `client_authentication_methods=none` + `require-proof-key=true` + `scopes`에 `offline_access`(Client Secret 불필요), 백엔드가 시크릿을 보관하는 서버 앱이면 그때 웹 콘솔에서 Client Secret 발급. 빠뜨리면 순서대로 로그인/로그아웃이 앱으로 못 돌아오거나 토큰 갱신이 안 된다
 3. **SDK 연동 / .env 채우기** → `service env` 한 번 (개발 문서의 값은 여기서 다 나온다; API Key와 서버 클라이언트의 Client Secret만 웹 콘솔 — 넣을 위치는 [표](#발급된-키를-앱에-넣는-위치) 참고)
-4. **현재 설정 확인** → `service main read`로 개요 대시보드부터 보고, `information`/`ui`/`login-type`/`term`/`policy`/`field`로 세부 진입
-5. **필드 하나만 변경** → 해당 플래그 사용 (예: `service ui update --theme DARK`)
-6. **중첩/복잡한 데이터 변경** → `read | jq '{data:(.data | 수정)}' | update` — `--from-stdin`은 플래그가 있는 명령(`oc`, `information`/`ui`/`api`, `login-type`)에만 붙인다. `policy`/`term`/`field`/`*-detail`의 `update`에 붙이면 `unknown flag`
-7. **순서 변경** (`login-type`, `policy`, `term`, `field`) → `position`에 (플래그 없이, stdin으로) `{"data":{"content":[{"id1":"<uid>"},...]}}` 형태로 전달
-8. **눈으로 확인** → 실제 로그인·가입 화면(브랜딩/테마 반영)은 `service ui preview`, 약관·정책 본문이나 패널 값은 해당 `read --preview` (main/information/ui/term-detail/policy-detail만 지원; 받은 JSON을 로컬에서 렌더링한 것일 뿐 실제 사용자 화면은 아님)
-9. **스크립팅/CI** → `login`으로 인증 정보를 저장해두면(OS 키체인, 헤드리스 환경은 `~/.myiam/credentials.yaml` 폴백) 같은 명령을 그대로 헤드리스로 사용 가능
+4. **인증 코드 작성** → 값을 다 얻었으면 [해당 프레임워크 quickstart 문서를 웹 조회 도구로 읽고](#인증-코드를-쓰기-전에-해당-프레임워크-quickstart-문서를-실제로-읽는다) 그 코드를 기준으로 붙인다. OAuth2 흐름을 직접 구현하지 않는다
+5. **로그인/가입이 끝까지 안 갈 때** → 앱 코드를 뜯기 전에 셋을 순서대로 본다 — (a) `oc read`의 `redirect_uris`가 앱이 실제로 보내는 주소와 글자 단위로 같은지, (b) [`svc info read`의 `register_user`](#회원가입이-끝난-뒤의-동작은-서비스-설정이-정한다--register_user)에서 `auto_login`이 꺼져 있거나 `manual_signup`이 켜져 있지 않은지, (c) `oc read`의 `scopes`에 `offline_access`와 `authorization_grant_types`에 `refresh_token`이 있는지
+6. **현재 설정 확인** → `service main read`로 개요 대시보드부터 보고, `information`/`ui`/`login-type`/`term`/`policy`/`field`로 세부 진입
+7. **필드 하나만 변경** → 해당 플래그 사용 (예: `service ui update --theme DARK`)
+8. **중첩/복잡한 데이터 변경** → `read | jq '{data:(.data | 수정)}' | update` — `--from-stdin`은 플래그가 있는 명령(`oc`, `information`/`ui`/`api`, `login-type`)에만 붙인다. `policy`/`term`/`field`/`*-detail`의 `update`에 붙이면 `unknown flag`
+9. **순서 변경** (`login-type`, `policy`, `term`, `field`) → `position`에 (플래그 없이, stdin으로) `{"data":{"content":[{"id1":"<uid>"},...]}}` 형태로 전달
+10. **눈으로 확인** → 실제 로그인·가입 화면(브랜딩/테마 반영)은 `service ui preview`, 약관·정책 본문이나 패널 값은 해당 `read --preview` (main/information/ui/term-detail/policy-detail만 지원; 받은 JSON을 로컬에서 렌더링한 것일 뿐 실제 사용자 화면은 아님)
+11. **스크립팅/CI** → `login`으로 인증 정보를 저장해두면(OS 키체인, 헤드리스 환경은 `~/.myiam/credentials.yaml` 폴백) 같은 명령을 그대로 헤드리스로 사용 가능
 
 ## CLI에서 의도적으로 제외한 것
 
