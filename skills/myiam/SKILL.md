@@ -1,6 +1,6 @@
 ---
 name: myiam
-description: myiam-cli로 MyIAM 서비스 설정(로그인 방법, 약관, 정책, 사용자 필드, UI 테마, OAuth2 클라이언트, API 설정)을 관리한다. 서비스 설정을 읽기/생성/수정/삭제/순서변경 하거나, 소속 조직(테넌트)·등급·멤버를 조회하거나, SDK 연동에 필요한 .env 값(service_uid, client_id, redirect uri, api/issuer URL)을 얻거나, 인증/대상 서비스 선택이 필요하거나, 서비스를 처음 만들고 API Key·Client Secret을 발급받는 방법을 안내해야 할 때 사용한다.
+description: myiam-cli로 MyIAM 서비스 설정(로그인 방법, 약관, 정책, 사용자 필드·커스텀 가입 정보, UI 테마, 로그인·가입 화면 문구, OAuth2 클라이언트, API 설정)을 관리한다. 서비스 설정을 읽기/생성/수정/삭제/순서변경 하거나, 소속 조직(테넌트)·등급·멤버나 MyIAM과의 서비스 합의(약관 직접 관리) 상태를 조회하거나, SDK 연동에 필요한 .env 값(service_uid, client_id, redirect uri, api/issuer URL)을 얻거나, 인증/대상 서비스 선택이 필요하거나, 서비스를 처음 만들고 API Key·Client Secret을 발급받는 방법을 안내해야 할 때 사용한다.
 ---
 
 # MyIAM CLI
@@ -37,6 +37,7 @@ myiam-cli console new-service    # 서비스 생성 (/startup)
 myiam-cli console api            # API 설정 — API Key 발급
 myiam-cli console oc             # OAuth2 클라이언트 — Client Secret 발급
 myiam-cli console user           # 가입자 목록 (CLI 미지원 영역)
+myiam-cli console agreement      # 약관 직접 관리 합의 — 동의·해지 신청 (CLI는 조회만)
 myiam-cli console docs           # 개발 문서
 ```
 
@@ -164,8 +165,8 @@ myiam-cli oc read | jq '{data: (.data | .client_settings["settings.client.requir
 myiam-cli service main read                       # svc main read — 읽기 전용 대시보드 (약관 목록은 노출 중인 것만)
 myiam-cli service main read --preview              # 로컬 브라우저 대시보드로 렌더링, Ctrl+C까지 블로킹
 
-myiam-cli service information read                 # svc info read
-myiam-cli service information update --from-stdin   # label, title, meta, footer, register_user, deregister_user
+myiam-cli service information read                 # svc info read — 정보·푸터·가입/탈퇴 설정 + 화면 문구
+myiam-cli service information update --from-stdin   # label, title, meta, footer, register_user, deregister_user, login, term_consent
                                                      # footer: footerNtype은 "path"(어떤 service policy의 bare path, 예 "terms") 또는 "link"(외부 URL); footerNtitle(LanguageText)은 필수 — 약관(term)은 path가 없어 footer에 못 넣는다, 넣으려면 정책으로도 만들 것
 
 myiam-cli service ui read                           # 테마, 색상, 브랜딩
@@ -250,7 +251,7 @@ myiam-cli svc info read | jq '.data.register_user'
 | 필드 | 기본값 | 꺼져 있을 때/켜져 있을 때 |
 |---|---|---|
 | `auto_login` | **ON**(미설정 포함) | OFF면 가입 완료 후 자동 로그인이 생략되어 로그인 화면이 한 번 더 뜬다. 방금 만든 계정으로 사용자가 직접 로그인해야 앱으로 돌아온다 |
-| `manual_signup` | OFF | ON이면 콜백이 인가 코드 대신 가입 토큰(`?token=`)을 들고 돌아온다. 앱이 API Key로 가입을 확정(`completeRegistration`)하고 응답의 `redirect_url`로 보내야 코드를 받는다 — Web SDK의 `handleCallback()`은 이 단계를 처리하지 않고 `manual_signup_unsupported`로 실패한다 |
+| `manual_signup` | OFF | ON이면 콜백이 인가 코드 대신 가입 토큰(`?token=`)을 들고 돌아온다. 앱이 API Key로 가입을 확정(`completeRegistration`)하고 응답의 `redirect_url`로 보내야 코드를 받는다 — Web SDK의 `handleCallback()`은 이 단계를 처리하지 않고 `manual_signup_unsupported`로 실패한다. 켤 때는 `signup_callback_url`(가입을 마칠 서비스 쪽 주소)이 **필수**다 — 비어 있으면 CLI가 보내기 전에 막는다 |
 | `manual_prepare` | OFF | ON이면 약관 동의 다음이 MyIAM 가입 폼이 아니라 서비스가 지정한 `prepare_callback_url`로 넘어간다 |
 
 세 값 모두 `svc info update --from-stdin`으로 바꾼다. **`--from-stdin`은 패널 전체를 대체하므로 반드시 `read` 결과에서 시작한다.**
@@ -261,6 +262,42 @@ myiam-cli svc info read | jq '{data: (.data | .register_user.auto_login = true)}
 ```
 
 `manual_signup`/`manual_prepare`는 자체 가입 백엔드를 붙인 서비스를 위한 것이다 — 사용자가 그런 구성을 의도하지 않았는데 켜져 있으면 끄자고 제안한다. 화면에서 보려면 `myiam-cli console info`.
+
+`register_user.self_managed_terms`가 `true`면 [약관 직접 관리 합의](#서비스-합의-service-agreement--조회만)가 효력 중이다 — 가입 때 MyIAM 약관 동의 화면이 없고, SDK 자동 가입 오버라이드(`allow_auto_signup_override`)는 무시되며, `manual_signup`·`provide_profile_data`를 끄는 저장과 약관 노출은 서버가 막는다(`Self Managed Terms Locked`). 읽기 전용 값이라 바꿀 수 없다.
+
+SNS 가입은 채울 것이 없으면 정보 입력 화면 없이 바로 가입되고, 이메일 인증만 남으면 인증 화면만 뜬다. 비어 있는 선택 필드가 하나라도 있으면 입력 화면이 뜬다 — "SNS 가입에서 입력 화면이 왜 나오나"는 `svc field list`의 선택 항목부터 본다.
+
+#### 로그인·가입 화면의 문구를 바꾼다 — 화면 문구
+
+**"로그인 버튼 글자를 바꿔 달라", "가입 화면 제목을 우리 서비스 말투로" 같은 요청은 앱 코드나 CSS가 아니라 이 설정이다.** 로그인·가입·약관 재동의 화면은 MyIAM이 그리므로 앱에서는 고칠 수 없고, 한 줄 문구 12개를 `svc info`로 덮어쓴다. 전용 명령은 없다.
+
+| 묶음 | 필드 | 사용자 화면 |
+|---|---|---|
+| `login` | `placeholder_id`, `placeholder_password`, `placeholder_email`, `button`, `register_link` | 로그인 — 입력칸 안내 3종, 로그인 버튼, 가입 링크 |
+| `register_user` | `term_title`, `term_subtitle`, `term_button` | 가입 · 약관 동의 — 타이틀, 설명, 버튼 |
+| `register_user` | `form_title`, `form_button` | 가입 · 사용자 정보 입력 — 타이틀, 버튼 |
+| `term_consent` | `agree_button`, `decline_button` | 약관 재동의(약관이 개정된 뒤 로그인하면 나오는 화면) — 동의·거절 버튼 |
+
+값은 전부 LanguageText(`{"ko":"...","en":"..."}`)다.
+
+```bash
+myiam-cli svc info read | jq '.data | {login, term_consent, register_user}'   # 덮어쓰지 않은 문구는 {}
+
+myiam-cli svc info read | jq '{data: (.data
+  | .login.button = {"ko":"들어가기","en":"Enter"}
+  | .register_user.term_title = {"ko":"우리 서비스 약관"}
+  | .term_consent.decline_button = {})}' \
+  | myiam-cli svc info update --from-stdin
+
+myiam-cli service ui preview --page login --lang en   # 저장한 문구를 실제 화면으로 확인
+```
+
+- **기본 문구로 되돌리려면 `{}`를 보낸다.** 필드를 빼거나 `null`로 보내면 "그대로 둔다"는 뜻이라 지워지지 않는다.
+- **언어마다 따로 넣는다.** 넣지 않은 언어의 화면에는 다른 언어로 넣은 문구가 아니라 그 언어의 MyIAM 기본 문구가 나간다 — 한국어만 넣으면 영어 화면은 기본 영어 문구 그대로다. 서비스가 여러 언어를 쓰면 사용자에게 언어별 문구를 받아 함께 넣는다. 공백뿐인 값은 저장되지 않는다.
+- **재동의 버튼은 뜻을 흐리지 않는다.** `term_consent.agree_button`은 누른 기록이 약관 동의의 근거가 되므로 동의 의사가 분명히 드러나야 하고, `decline_button`은 누르면 로그아웃되어 서비스를 쓸 수 없다는 점이 드러나야 한다. "확인"·"다음" 같은 문구를 제안하지 않는다.
+- 미리보기는 `--page login`(로그인), `signup`(약관 동의), `signup_form`(정보 입력)에서 본다. 약관 재동의 화면은 미리보기가 없다.
+- `read` 결과에 `login`/`term_consent`가 아예 없으면 서버가 아직 이 기능을 모르는 버전이다 — 그때 보낸 문구는 에러 없이 버려지므로, 저장 후 응답에 값이 돌아왔는지 확인한다.
+- 여기 없는 문구(푸터, 탈퇴 경고, 로그인 타입 이름, 입력 필드 라벨)는 각각 `footer`, `deregister_user`, `service login-type`, `service field`가 가진다.
 
 ## 로그인 타입 (`service login-type`, 별칭 `svc lt`)
 
@@ -275,7 +312,37 @@ echo '{"data":{"content":[{"id1":"uidA"},{"id1":"uidB"}]}}' | myiam-cli svc lt p
 myiam-cli svc lt sns-defaults SNS_KAKAO             # 인증 불필요; Naver/Kakao/Google/Apple의 OAuth2 기본값 조회
 ```
 
+**SNS 비밀값은 쓰기 전용이다.** `read`/`list`에는 `client_secret`·`apple_private_key`가 나오지 않고 `secrets.has_client_secret`/`has_apple_private_key`로 저장 여부만 보인다. 비우거나 빼고 `update`하면 저장된 값이 그대로 남으므로, `read` 결과를 그대로 되보내도 비밀값이 지워지지 않는다. 값을 바꿀 때만 `--client-secret`(또는 stdin에 새 값)을 준다. 비밀값을 대화에 붙여 달라고 요청하지 말고, 사용자가 직접 명령을 실행하게 한다.
+
+**IDP(아이디·비밀번호) 규칙**은 `data.idp`의 `username`(`1 ≤ min_length ≤ max_length ≤ 96`)·`password`(`1 ≤ min_length ≤ max_length ≤ 128`, `max_length` ≥ 켠 `require_*` 개수)다. 길이는 최소·최대를 같이 보낸다 — 하나를 빼면 0으로 나가 `VALIDATION_ERROR`로 막힌다. `password.disallow_username`(기본 켬)은 새 비밀번호에 아이디의 연속 4자 이상이 들어가면 거절한다 — 이미 쓰던 비밀번호의 로그인은 막지 않는다. 끌 때는 `read` 결과에서 `false`로 바꿔 보낸다.
+
 `method`(IDP/EMAIL_OTP/PASSKEY/SNS_NAVER/SNS_KAKAO/SNS_GOOGLE/SNS_APPLE)는 생성 시 고정된다. SNS_* 방식은 `sns-defaults` 값이 자동으로 채워지며, `--client-id`/`--client-secret` 또는 `--from-stdin`의 `data.oauth2`로 재정의할 수 있다. 기본값이 없어 직접 넣어야 하는 값은 `sns-defaults` 출력의 `user_provided_fields`에 나온다 — `SNS_APPLE`은 client_id/client_secret 외에 `apple_team_id`/`apple_key_id`/`apple_private_key`(developer.apple.com)도 필요하고, 이 셋은 플래그가 없어 `svc lt read <uid> | jq ... | svc lt update <uid> --from-stdin`으로만 넣는다 (stdin은 패널 전체를 대체하므로 반드시 `read` 결과에서 시작).
+
+## 서비스 합의 (`service agreement`) — 조회만
+
+서비스(OWNER)가 MyIAM과 맺는 합의. 지금 종류는 `SELF_MANAGED_TERMS`(약관 직접 관리 — 고객사가 약관 동의를 직접 받고 관리하는 대신 그 책임을 진다) 하나다.
+
+```bash
+myiam-cli svc info read | jq '.data.agreements'          # 종류별 요약 (상태, 버전, 새 버전 여부)
+myiam-cli svc agreement read SELF_MANAGED_TERMS          # 상태·막힌 사유(block_reasons)·합의서 전문·내역
+myiam-cli svc agreement list [--type SELF_MANAGED_TERMS] # 합의 행, 최신이 위
+myiam-cli svc agreement history <uid>                    # 합의 한 건 + 그 버전 전문
+```
+
+**CLI는 상태를 조회해 전달하기만 하고, 설정·변경은 관리자 사이트로 안내한다.** 동의, 승인 전 취소, 해지 신청, MyIAM의 보완 요청에 대한 응답은 OWNER가 합의서를 읽고 직접 하는 계약 행위다 — 명령을 찾지 말고 `myiam-cli console agreement`로 콘솔을 열어 준다. 사용자가 "합의해 줘"라고 해도 대신 동의하지 않는다.
+
+`block_reasons`(지금 동의할 수 없는 사유)는 대부분 CLI로 고칠 수 있는 설정이다 — 고칠지는 사용자에게 먼저 확인한다:
+
+| 사유 | 할 일 |
+|---|---|
+| `MANUAL_SIGNUP_OFF` | `register_user.manual_signup` 켜기(+ `signup_callback_url` 필수) |
+| `PROFILE_DATA_OFF` | `register_user.provide_profile_data` 켜기 — 공지 메일을 못 쓰므로 고객사가 가입 때 이메일을 받아야 한다 |
+| `AUTO_SIGNUP_OVERRIDE_ON` | `register_user.allow_auto_signup_override` 끄기 |
+| `TERM_EXISTS` | 노출 중인 약관을 내리기(`svc term draft`, 개정 시리즈면 `unpublish` 등) |
+| `NOT_OWNER` | OWNER에게 넘긴다 (ADMIN은 조회만, MANAGER는 조회도 403) |
+| `ALREADY_AGREED`·`PENDING_APPROVAL`·`NO_OFFERED_DOCUMENT`·`TENANT_TRANSFER_IN_PROGRESS` | 설정으로 풀리지 않는다 — 상태만 전한다 |
+
+설정을 모두 맞춘 뒤 `read`의 `block_reasons`가 `NOT_OWNER` 말고는 비었는지 확인하고, 동의는 콘솔에서 하도록 안내한다. 합의가 효력 중일 때 약관 노출·위 설정 변경이 `Self Managed Terms Locked`로 막히는 것은 정상이다 — 해지 신청 중(`REVOKE_REQUESTED`)에는 이관용 초안 약관만 만들고 고칠 수 있다.
 
 ## 정책 (`service policy`) / 정책 버전 (`service policy-detail`, 별칭 `svc pd`)
 
@@ -451,6 +518,31 @@ echo '{"data":{"content":[{"uid":"...","section":1},...]}}' | myiam-cli service 
 
 `--field-type`/`--field-key`/`--label`과 `--from-stdin`을 동시에 주면 에러가 난다 — 반드시 하나만 골라야 하고, `--from-stdin`을 쓸 땐 세 값을 전부 stdin `data` 안에 넣어야 한다.
 
+### 커스텀 필드 (`field_type: CUSTOM`) — 서비스가 정한 가입 정보
+
+"가입할 때 부서/추천인 코드/사번을 받고 싶다"는 요청은 CUSTOM 필드로 처리한다. 설정은 `--from-stdin`의 `data.data.custom`에 넣는다.
+
+```bash
+echo '{"data":{"label":"부서","field_type":"CUSTOM","field_key":"department","input_type":"OPTIONAL",
+  "data":{"custom":{"form_type":"SELECT","validation_type":"NONE",
+    "select_options":[{"value":"eng","label":"엔지니어링"},{"value":"mkt","label":"마케팅"}]}},
+  "string_table":{"title":{"ko":"부서","en":"Department"}}}}' | myiam-cli svc field create --from-stdin
+```
+
+- **키 이름은 snake_case**(`hidden`, `form_type`, `validation_type`, `validation_pattern`, `select_options`, `textarea_rows`, `min_length`, `max_length`, `min_value`, `max_value`)이고 enum은 이름 문자열(`"INPUT"`)이다. camelCase(`formType`)로 보내면 에러 없이 버려져 그 설정이 빠진 채 저장된다.
+- **`field_key`**: 영문자로 시작, 영문·숫자·`_`만(`INVALID_CUSTOM_KEY`), 서비스 안에서 유일(`DUPLICATE_CUSTOM_KEY`). 고객사 서버가 값을 넣고 읽을 때 쓰는 이름이다.
+- **표시 필드**(`hidden` 생략/false): `form_type` 필수 — `INPUT`, `SELECT`(`select_options` 필수), `SWITCH`(값 `"true"`/`"false"`), `TEXTAREA`. `validation_type`은 `NONE`/`EMAIL`/`PHONE`/`NUMBER`/`URL`/`REGEX`(`validation_pattern` 필수).
+- **숨김 필드**(`hidden: true`): 가입 화면에 그리지 않고 고객사가 값을 넣는다 — 가입 링크 쿼리(`?<field_key>=값`), 서버 간 호출인 prepare/complete·register/complete. 쿼리 값은 사용자가 고칠 수 있으므로 믿어야 하는 값(사번·추천인 보상)은 서버 간 호출로 넣으라고 안내한다.
+- **필드별 범위**(둘 다 하나만 줘도 된다):
+  - `min_length`/`max_length`: 값 길이, `form_type`이 `INPUT`·`TEXTAREA`일 때만. `1 ≤ 최소 ≤ 최대 ≤ 1024`, 최대를 비우면 1024(`Invalid Custom Length Rule`).
+  - `min_value`/`max_value`: 숫자 범위(양 끝 포함), `validation_type: NUMBER`일 때만. `0 ≤ 최소 ≤ 최대`(`Invalid Custom Number Rule`). 서버 응답에는 문자열로 오지만 CLI는 숫자로 출력하고, 입력은 둘 다 받는다.
+- **상한**:
+  - 개수: 서비스당 CUSTOM 필드는 등급 한도까지다(FREE 10 / PRO 30 / ENTERPRISE 50). 초안·숨김도 센다. 한도에 닿으면 새로 만들기만 막히고(`REQUEST_INVALID`, 403 `Custom Field limit exceeded`) 있는 필드의 update·delete는 된다 — 안 쓰는 CUSTOM 필드를 지울지, 등급을 올릴지(`console tier`) 사용자에게 묻는다.
+  - 선택 옵션 100개 이하, 옵션 값은 비우지 않고 1,024자 이하.
+  - `validation_pattern`은 256자 이하이고 컴파일돼야 한다. 일부만 맞아도 통과하므로 값 전체를 검사하려면 `^…$`로 감싼다.
+  - 가입 값은 하나에 1,024자까지다(어느 경로로 넣어도 넘으면 400). 가입 화면에 그리는 필드는 형식·필드별 길이·숫자 범위도 지켜야 한다(어기면 400 `Invalid custom field value`) — 고객사가 미리 넣는 값도 마찬가지로 범위 안이어야 사용자가 그대로 가입할 수 있다. 가입 링크 쿼리는 서버 헤더 한도(8KB) 때문에 긴 한글 값이 더 일찍 막히므로, 긴 값은 prepare/complete로 넣는다.
+- 값은 모두 문자열로 저장된다. 다국어 문구는 `string_table`의 `title`/`placeholder`/`error`.
+
 ## 작업 흐름 가이드
 
 1. **최초 설정** → `login` (자동 선택된 서비스가 없으면 `service list` → `service use <uid>`). `service list`가 빈 배열(`[]`)을 반환하면 아직 [myiam.io](https://myiam.io)에 가입해 관리할 서비스를 만들지 않은 것이다 — CLI 명령을 더 시도하지 말고 [서비스를 처음 만드는 경우](#서비스를-처음-만드는-경우--웹-콘솔에서-생성--api-key-발급) 순서대로 `myiam-cli console new-service`로 콘솔을 열어 서비스 생성·API Key 발급을 안내한 뒤, 완료되면 다시 `service list`로 확인한다.
@@ -468,12 +560,13 @@ echo '{"data":{"content":[{"uid":"...","section":1},...]}}' | myiam-cli service 
 ## CLI에서 의도적으로 제외한 것
 
 - Client Secret / API Key 생성 — 웹 콘솔 전용 (1회성 노출 UI, 명확한 사용자 동작 필요)
+- 서비스 합의의 동의·취소·해지 신청·보완 응답 — OWNER가 합의서를 읽고 하는 계약 행위. CLI는 `svc agreement read|list|history`로 상태를 알려 주고 `console agreement`로 안내한다
 - 서비스 생성/파기, 운영자 역할 초대/승인, 소유자 이전 — 되돌리기 어렵거나 사람 간 권한 위임이 필요한 작업, 관리자 콘솔 전용
 - 조직(테넌트) 쓰기 동작 대부분 — 생성·삭제·복구·등급변경 요청(플랫폼 승인 필요), 결제/사업자 정보(개인정보), 멤버 초대·역할 변경·소유권 이관, 서비스 이동/양수도. CLI에 있는 쓰기는 `tenant update`(이름·아이콘)뿐이다
 - 약관 개정 고지 등 대량 메일 발송 — 발송 건수를 사람이 직접 확인·입력해야 하는 되돌릴 수 없는 작업
 - 최종 서비스 가입자(회원) 관리 — 이 CLI는 서비스의 "설정"을 다루는 도구이지 "가입자"를 다루는 도구가 아니다
 
-이 목록에 있는 작업을 요청받으면 명령을 찾지 말고 **관리자 콘솔에서 수행해야 한다고 안내**한다. 조회 명령(`tenant read`/`request list`/`member list`)으로 현재 상태와 요청 결과를 확인해주는 것까지가 CLI의 역할이다.
+이 목록에 있는 작업을 요청받으면 명령을 찾지 말고 **관리자 콘솔에서 수행해야 한다고 안내**한다. 조회 명령(`tenant read`/`request list`/`member list`, `svc agreement read`)으로 현재 상태와 요청 결과를 확인해주는 것까지가 CLI의 역할이다.
 
 ## 스키마
 
