@@ -108,6 +108,7 @@ myiam-cli tenant member read <tenant-uid> <service-user-uid>
 - 조직 역할은 `OWNER`(조직당 1명) / `ADMIN`(일상 운영은 OWNER와 동등) / `MANAGER`(조회 전용).
 
 - 조직 기능은 관리자 콘솔에서 아직 MyIAM 관리자에게만 열려 있다(정식 오픈 전 임시 게이트). CLI는 게이트를 두지 않고 서버 권한만 따르므로, 콘솔 메뉴에 조직이 안 보인다는 말을 들어도 CLI 조회는 정상이다.
+- FREE 등급에서 조직 없이 둘 수 있는 서비스는 2개다. 같은 사람이 OWNER인 조직 없는 서비스들은 FREE 한도 하나(사용자 수·Rate Limit)를 **합산해서** 나눠 쓴다 — 서비스를 하나 더 만들어도 무료 한도가 늘지 않는다. 한 서비스의 사용자 수·호출량이 다른 서비스 때문에 한도에 닿을 수 있으므로, "사용자가 많지 않은데 가입이 막힌다"·"429가 난다"면 같은 소유자의 다른 조직 없는 서비스도 본다. 조직에 속한 서비스는 조직 한도를 합산한다.
 - 등급을 올리려는 요청을 받으면 CLI로 시도하지 말고 **관리자 콘솔에서 등급 변경을 요청**하도록 안내한다 — 플랫폼 승인이 필요하고 결제 정보가 얽힌다. `tenant request list`로 그 요청이 승인/거절됐는지는 확인해줄 수 있다.
 
 ## OAuth2 클라이언트
@@ -172,9 +173,10 @@ myiam-cli service information update --from-stdin   # label, title, meta, footer
 myiam-cli service ui read                           # 테마, 색상, 브랜딩
 myiam-cli service ui update --theme DARK            # 단일 필드 플래그
 myiam-cli service ui update --from-stdin            # 색상/icon_html (중첩 데이터)
+                                                    # light_color/dark_color: primary, on_primary(주 색 버튼 위 글자 — 밝은 주 색이면 짙은 색), danger, fg.*, bg.*, border.* (전체는 `myiam-cli schema`)
 myiam-cli service ui preview                        # 실제 로그인 화면을 admin 서버가 렌더링한 그대로 열기 (--page/--theme/--lang, 연 뒤에는 페이지 안 탭/토글/드롭다운으로 계속 전환 가능)
 
-myiam-cli service tier read                         # 읽기 전용: effective_tier(FREE|PRO|ENTERPRISE|UNLIMITED) + 고정 한도 + 소속 조직(tenant)
+myiam-cli service tier read                         # 읽기 전용: effective_tier(FREE|PRO|ENTERPRISE|UNLIMITED) + 고정 한도 + 소속 조직(tenant) — 조직 없는 FREE 서비스의 한도는 같은 OWNER의 조직 없는 서비스들과 합산
 
 myiam-cli service api read
 myiam-cli service api update --allowed-ips "1.2.3.4,5.6.7.8"
@@ -264,6 +266,8 @@ myiam-cli svc info read | jq '{data: (.data | .register_user.auto_login = true)}
 `manual_signup`/`manual_prepare`는 자체 가입 백엔드를 붙인 서비스를 위한 것이다 — 사용자가 그런 구성을 의도하지 않았는데 켜져 있으면 끄자고 제안한다. 화면에서 보려면 `myiam-cli console info`.
 
 `register_user.self_managed_terms`가 `true`면 [약관 직접 관리 합의](#서비스-합의-service-agreement--조회만)가 효력 중이다 — 가입 때 MyIAM 약관 동의 화면이 없고, SDK 자동 가입 오버라이드(`allow_auto_signup_override`)는 무시되며, `manual_signup`·`provide_profile_data`를 끄는 저장과 약관 노출은 서버가 막는다(`Self Managed Terms Locked`). 읽기 전용 값이라 바꿀 수 없다.
+
+`register_user.provide_sns_raw_data`(기본 OFF)를 켜면 SNS 가입 때 SNS가 준 사용자 정보를 MyIAM이 회원 정보로 옮기기 전 그대로(프로필 이미지·연령대처럼 MyIAM이 저장하지 않는 값 포함) 고객사 서버가 가입 전에 받을 수 있다 — 준비 콜백(`prepare_callback_url`)이나 가입 콜백(`signup_callback_url`)으로 받은 토큰으로 `POST /api/v0/account/register/info`(헤더 `My-Key`·`My-Service`, 본문 `{"token"}`)를 부르면 `sns_type`·`sns_raw_data`가 온다. `provide_profile_data`와는 별개 설정이고, 수동 가입·수동 준비 중 하나로 토큰을 받는 구성이어야 쓸 곳이 있다. 켜기 전에 시작된 가입과 아이디·비밀번호 가입은 `null`, 가입을 마친 토큰은 404, 설정이 꺼져 있으면 400(`SNS raw data is not provided`)이다. 매핑하지 않은 개인정보가 담기므로 사용자가 그 값이 필요하다고 할 때만 켠다.
 
 SNS 가입은 채울 것이 없으면 정보 입력 화면 없이 바로 가입되고, 이메일 인증만 남으면 인증 화면만 뜬다. 비어 있는 선택 필드가 하나라도 있으면 입력 화면이 뜬다 — "SNS 가입에서 입력 화면이 왜 나오나"는 `svc field list`의 선택 항목부터 본다.
 
