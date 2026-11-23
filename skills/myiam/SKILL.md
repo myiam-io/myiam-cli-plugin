@@ -269,7 +269,7 @@ myiam-cli svc info read | jq '{data: (.data | .register_user.auto_login = true)}
 
 `register_user.provide_sns_raw_data`(기본 OFF)를 켜면 SNS 가입 때 SNS가 준 사용자 정보를 MyIAM이 회원 정보로 옮기기 전 그대로(프로필 이미지·연령대처럼 MyIAM이 저장하지 않는 값 포함) 고객사 서버가 가입 전에 받을 수 있다 — 준비 콜백(`prepare_callback_url`)이나 가입 콜백(`signup_callback_url`)으로 받은 토큰으로 `POST /api/v0/account/register/info`(헤더 `My-Key`·`My-Service`, 본문 `{"token"}`)를 부르면 `sns_type`·`sns_raw_data`가 온다. `provide_profile_data`와는 별개 설정이고, 수동 가입·수동 준비 중 하나로 토큰을 받는 구성이어야 쓸 곳이 있다. 켜기 전에 시작된 가입과 아이디·비밀번호 가입은 `null`, 가입을 마친 토큰은 404, 설정이 꺼져 있으면 400(`SNS raw data is not provided`)이다. 매핑하지 않은 개인정보가 담기므로 사용자가 그 값이 필요하다고 할 때만 켠다.
 
-SNS 가입은 채울 것이 없으면 정보 입력 화면 없이 바로 가입되고, 이메일 인증만 남으면 인증 화면만 뜬다. 비어 있는 선택 필드가 하나라도 있으면 입력 화면이 뜬다 — "SNS 가입에서 입력 화면이 왜 나오나"는 `svc field list`의 선택 항목부터 본다.
+SNS 가입은 채울 것이 없으면 정보 입력 화면 없이 바로 가입되고, 이메일 인증만 남으면 인증 화면만 뜬다. 비어 있는 선택 필드가 하나라도 있으면 입력 화면이 뜬다 — "SNS 가입에서 입력 화면이 왜 나오나"는 `svc field list`의 선택 항목부터 본다. 가입 때 묻지 않을 선택 필드는 `section: 0`으로 옮기면 세지 않는다([사용자 필드](#사용자-필드-service-field) 참고).
 
 #### 로그인·가입 화면의 문구를 바꾼다 — 화면 문구
 
@@ -521,6 +521,10 @@ echo '{"data":{"content":[{"uid":"...","section":1},...]}}' | myiam-cli service 
 `field_type`(CUSTOM, EMAIL, NAME, NICKNAME, GENDER, BIRTH_YEAR, BIRTHDAY, DATE_OF_BIRTH, MOBILE_NUMBER, HOME_NUMBER, PHONE_NUMBER, ADDRESS)과 `field_key`는 생성 후 영구히 고정된다. `CUSTOM`은 임의의 `field_key`를 직접 정할 수 있고, 그 외 타입은 기존에 존재하던 시스템 필드를 재활성화하는 것이다 — `field_key`는 `field_type`을 소문자로 바꾼 값이다(예: `EMAIL` → `email`, `MOBILE_NUMBER` → `mobile_number`). `field list`/`field read`는 field_key를 노출하지 않으므로(생성 응답에서만 echo됨) 조회하지 말고 이 규칙으로 계산할 것 — 예전에 삭제한 시스템 필드를 다시 켜는 방법도 이것이다.
 
 `--field-type`/`--field-key`/`--label`과 `--from-stdin`을 동시에 주면 에러가 난다 — 반드시 하나만 골라야 하고, `--from-stdin`을 쓸 땐 세 값을 전부 stdin `data` 안에 넣어야 한다.
+
+**초안(`status: DRAFT`)**: 필드를 가입 화면·회원 정보 수정 화면에 내보내기 전에 준비해 두는 상태다. `create --from-stdin`의 `data.status`에 `"DRAFT"`를 넣어 만든다 — 생략하면 `NORMAL`로 바로 노출된다(약관·정책과 달리 CLI가 DRAFT를 기본으로 넣지 않는다). 초안은 필수 항목이어도 가입 때 요구하지 않고, `service ui preview`(관리자 미리보기)에서만 보인다. 발행은 `read` 결과의 `status`만 `NORMAL`로 바꿔 `update`로 되보낸다. 필수 항목을 발행하면 기존 회원에게는 그 값이 없다는 점을, CUSTOM 필드를 초안으로 돌리면 고객사 서버가 보내는 그 키의 값이 (에러 없이) 버려진다는 점을 사용자에게 알린다.
+
+**가입 화면 번호(`section`)**: 1 이상은 가입 화면 번호다(같은 번호끼리 한 화면). **0은 "가입 화면에 그리지 않는다"** — 회원 정보 수정 화면에서만 받고, 가입 때는 SNS가 값을 줬어도 저장하지 않으며, 가입 정보 입력 화면 생략 판정에서도 세지 않는다. 선택 항목(`OPTIONAL`)이면서 이메일이 아닌 필드만 둘 수 있다(어기면 400 `Invalid Field Section`). "선택 필드 하나 때문에 SNS 가입에서 입력 화면이 뜬다"면 그 필드를 0으로 옮기는 것이 방법이다. `update-sections`에 같은 uid를 두 번 넣으면 400이다.
 
 ### 커스텀 필드 (`field_type: CUSTOM`) — 서비스가 정한 가입 정보
 
